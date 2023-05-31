@@ -1,0 +1,38 @@
+
+
+
+
+
+
+# -- Deploy to EOS ----------------------------
+# Use the standard workflow to publish to eos
+# see https://gitlab.cern.ch/ci-tools/ci-web-deployer
+# The variables for this particular deployment:
+# CI_OUTPUT_DIR: build/doxygen/html/
+# EOS_ACCOUNT_PASSWORD: xxx
+# EOS_ACCOUNT_USERNAME: xxx
+# EOS_PATH: /eos/project-k/key4hep/www/edm4hep/
+# METHOD: rsync
+# are set in the repository https://gitlab.cern.ch/key4hep/edm4hep,
+# which mirrors https://github.com/key4hep/edm4hep
+# In particular, the service account key4hep is used to write
+# to the eos space /eos/project/k/key4hep/www/edm4hep
+# Other accounts which are part of the e-groups
+# cernbox-project-key4hep-{readers|writers} may be used.
+# The eos path and website are configured using https://webeos.cern.ch/
+deployment:
+  # make sure that changes are deployed only when they are merged to master
+  only:
+    refs:
+      - master
+  # need the doxygen artifacts for this step
+  dependencies:
+    - generate-docs
+  stage: deploy
+  # see see https://gitlab.cern.ch/ci-tools/ci-web-deployer
+  image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer:latest
+  script:
+    - deploy-eos
+  before_script: []
+  after_script: []
+
