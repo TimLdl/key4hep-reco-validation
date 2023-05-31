@@ -3,7 +3,7 @@ variables:
         value: CLIC_o3_v15
         description: Which geometry to use
     NUMBER_OF_EVENTS:
-        value: 1000
+        value: 25
         description: How many events to run on
     WORKAREA:
       value: /cvmfs/validation
@@ -21,6 +21,7 @@ stages:
     image: gitlab-registry.cern.ch/key4hep/k4-deploy/alma9-build
     tags:
         - alma9
+        - validation
     
 prepare:
     <<: *template-job
