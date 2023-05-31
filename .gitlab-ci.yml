@@ -25,9 +25,6 @@ deployment:
   only:
     refs:
       - master
-  # need the doxygen artifacts for this step
-  dependencies:
-    - generate-docs
   stage: deploy
   # see see https://gitlab.cern.ch/ci-tools/ci-web-deployer
   image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer:latest
