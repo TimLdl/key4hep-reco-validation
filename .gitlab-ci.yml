@@ -1,8 +1,102 @@
+variables:
+    GEOMETRY:
+        value: CLIC_o3_v15
+        description: Which geometry to use
+    NUMBER_OF_EVENTS:
+        value: 1000
+        description: How many events to run on
+    WORKAREA:
+      value: /cvmfs/validation
+    EVENTS_PER_FILE:
+        value: 25
+    
+stages:
+    - setup
+    - simulate
+    - reconstruct
+    - plot
+    - deploy
 
+.template-job: &template-job
+    image: gitlab-registry.cern.ch/key4hep/k4-deploy/alma9-build
+    tags:
+        - alma9
+    
+prepare:
+    <<: *template-job
+    stage: setup
+    script: |
+        mkdir -p $WORKAREA
+        cd $WORKAREA
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(dirname $rel)
+        echo rel is $rel
+        source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
+        git clone https://github.com/jmcarcell/trackvalidation --depth 1
+        git clone https://github.com/iLCSoft/CLICPerformance --depth 1
+        git clone https://github.com/key4hep/key4hep-reco-validation --depth 1
+        cp ${LCGEO}/CLIC/compact/${GEOMETRY} . -r
 
+simulation:
+    <<: *template-job
+    stage: simulate
+    script: |
+        cd $WORKAREA
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(dirname $rel)
+        echo rel is $rel
+        source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
+        job_commands=()
+        ary=$(ls key4hep-reco-validation/data/Z*)
+        ary=($ary)
+        for ((i=0; i<=${#ary[*]}; i++)); do
+            echo $i
+            echo ${ary[i]}
+            job_commands+=("ddsim --compactFile ${GEOMETRY}/${GEOMETRY}.xml --outputFile sim$i.slcio --steeringFile CLICPerformance/clicConfig/clic_steer.py --inputFiles ${ary[i]} --numberOfEvents $EVENTS_PER_FILE")
+        done
+        run_job() {
+            eval "$1"
+        }
+        export -f run_job
+        parallel -j $(nproc) run_job ::: "${job_commands[@]}"
+        lcio_merge_files sim.slcio sim*.slcio
 
+reconstruction:
+    <<: *template-job
+    stage: reconstruct
+    script: |
+        cd $WORKAREA
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(dirname $rel)
+        echo rel is $rel
+        source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
+
+        cd CLICPerformance/clicConfig
+        Marlin clicReconstruction.xml --InitDD4hep.DD4hepXMLFile=../../${GEOMETRY}/${GEOMETRY}.xml --global.LCIOInputFiles=../../sim.slcio
+        mv Output_DST.slcio Output_REC.slcio histograms.root ../../
+        cd -
+
+plots:
+    stage: plot
+    script: |
+        cd $WORKAREA
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(dirname $rel)
+        echo rel is $rel
+        source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
+
+        # Jet
+        sed -ie 's/TightSelectedPandoraPFOs/PandoraPFOs/' CLICPerformance/Calorimetry/testCalibJetStudies.xml
+        sed -ie "s|/eos.*|$PWD/Output_DST.slcio|" CLICPerformance/Calorimetry/testCalibJetStudies.xml
+        Marlin CLICPerformance/Calorimetry/testCalibJetStudies.xml
+
+        # python key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /eos/home-j/jcarcell/Testing_20/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root
+        python key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root
+        mkdir -p key4hep-reco-validation/www/jets/plots
+        mv *.png key4hep-reco-validation/www/jets/plots
+    
 
 # -- Deploy to EOS ----------------------------
 # Use the standard workflow to publish to eos
