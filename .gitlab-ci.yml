@@ -78,6 +78,7 @@ reconstruction:
         mv Output_DST.slcio Output_REC.slcio histograms.root ../../
 
 plots:
+    <<: *template-job
     stage: plot
     script: |
         cd $WORKAREA
