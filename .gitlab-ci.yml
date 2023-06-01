@@ -21,6 +21,11 @@ stages:
     image: gitlab-registry.cern.ch/key4hep/k4-deploy/alma9-build
     tags:
         - alma9
+
+.template-deploy-job: &template-deploy-job
+    image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer:latest
+    tags:
+        - alma 9
     
 prepare:
     <<: *template-job
@@ -98,7 +103,7 @@ plots:
         mkdir -p key4hep-reco-validation/www/jets/plots
         mv *.png key4hep-reco-validation/www/jets/plots
 
-        cd key4hep-reco-validation
+        cd key4hep-reco-validation/www
         python script_jinja.py
     
 
@@ -119,14 +124,13 @@ plots:
 # cernbox-project-key4hep-{readers|writers} may be used.
 # The eos path and website are configured using https://webeos.cern.ch/
 deployment:
+  <<: *template-deploy-job
   # make sure that changes are deployed only when they are merged to master
   only:
     refs:
       - master
   when: always
   stage: deploy
-  # see see https://gitlab.cern.ch/ci-tools/ci-web-deployer
-  image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer:latest
   script:
     - deploy-eos
   before_script: []
