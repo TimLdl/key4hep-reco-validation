@@ -31,6 +31,7 @@ prepare:
     <<: *template-job
     stage: setup
     script: |
+        ls -lah
         mkdir -p $WORKAREA
         cd $WORKAREA
         rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
