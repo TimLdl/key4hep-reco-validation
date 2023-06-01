@@ -76,7 +76,6 @@ reconstruction:
         cd CLICPerformance/clicConfig
         Marlin clicReconstruction.xml --InitDD4hep.DD4hepXMLFile=../../${GEOMETRY}/${GEOMETRY}.xml --global.LCIOInputFiles=../../sim.slcio
         mv Output_DST.slcio Output_REC.slcio histograms.root ../../
-        cd -
 
 plots:
     stage: plot
