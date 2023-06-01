@@ -25,7 +25,7 @@ stages:
 .template-deploy-job: &template-deploy-job
     image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer:latest
     tags:
-        - alma 9
+        - alma9
     
 prepare:
     <<: *template-job
