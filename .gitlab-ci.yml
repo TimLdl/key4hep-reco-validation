@@ -51,7 +51,7 @@ simulation:
         job_commands=()
         ary=$(ls key4hep-reco-validation/data/Z* | head -n $(($NUMBER_OF_EVENTS / $EVENTS_PER_FILE)) )
         ary=($ary)
-        for ((i=0; i<=${#ary[*]}; i++)); do
+        for ((i=0; i<${#ary[*]}; i++)); do
             echo $i
             echo ${ary[i]}
             job_commands+=("ddsim --compactFile ${GEOMETRY}/${GEOMETRY}.xml --outputFile sim$i.slcio --steeringFile CLICPerformance/clicConfig/clic_steer.py --inputFiles ${ary[i]} --numberOfEvents $EVENTS_PER_FILE")
