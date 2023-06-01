@@ -21,7 +21,6 @@ stages:
     image: gitlab-registry.cern.ch/key4hep/k4-deploy/alma9-build
     tags:
         - alma9
-        - validation
     
 prepare:
     <<: *template-job
