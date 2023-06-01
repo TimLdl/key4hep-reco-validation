@@ -97,6 +97,9 @@ plots:
         python key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root
         mkdir -p key4hep-reco-validation/www/jets/plots
         mv *.png key4hep-reco-validation/www/jets/plots
+
+        cd key4hep-reco-validation
+        python script_jinja.py
     
 
 # -- Deploy to EOS ----------------------------
@@ -120,6 +123,7 @@ deployment:
   only:
     refs:
       - master
+  when: always
   stage: deploy
   # see see https://gitlab.cern.ch/ci-tools/ci-web-deployer
   image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer:latest
