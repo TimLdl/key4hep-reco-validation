@@ -49,7 +49,7 @@ simulation:
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
         job_commands=()
-        ary=$(ls key4hep-reco-validation/data/Z*)
+        ary=$(ls key4hep-reco-validation/data/Z* | head -n $(($NUMBER_OF_EVENTS / $EVENTS_PER_FILE)) )
         ary=($ary)
         for ((i=0; i<=${#ary[*]}; i++)); do
             echo $i
