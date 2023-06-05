@@ -3,17 +3,23 @@ variables:
         value: CLIC_o3_v15
         description: Which geometry to use
     NUMBER_OF_EVENTS:
-        value: 25
+        value: "25"
         description: How many events to run on
     WORKAREA:
-      value: /cvmfs/validation
+        value: /cvmfs/validation
+        description: Where to run the validation on the runner
     EVENTS_PER_FILE:
-        value: 25
-    
+        value: "25"
+        description: How many events each input files has
+    MAKE_REFERENCE_SAMPLE:
+        value: "no"
+        description: Whether to only make a reference sample for later use
+
 stages:
     - setup
     - simulate
     - reconstruct
+    - make-plot-files
     - plot
     - deploy
 
@@ -39,10 +45,13 @@ prepare:
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
+        # rm trackvalidation CLICPerformance key4hep-reco-validation -rf
         git clone https://github.com/jmcarcell/trackvalidation --depth 1
         git clone https://github.com/iLCSoft/CLICPerformance --depth 1
         git clone https://github.com/key4hep/key4hep-reco-validation --depth 1
-        cp ${LCGEO}/CLIC/compact/${GEOMETRY} . -r
+        # Copy the geometry locally, avoid possible issues with equal signs in the path
+        path=$(find ${LCGEO} -name ${GEOMETRY} -type d)
+        cp $path . -r
 
 simulation:
     <<: *template-job
@@ -83,28 +92,21 @@ reconstruction:
         Marlin clicReconstruction.xml --InitDD4hep.DD4hepXMLFile=../../${GEOMETRY}/${GEOMETRY}.xml --global.LCIOInputFiles=../../sim.slcio
         mv Output_DST.slcio Output_REC.slcio histograms.root ../../
 
-plots:
+make-plot-files:
     <<: *template-job
-    stage: plot
+    stage: make-plot-files
     when: always
     script: |
-        mkdir -p ~/.config/matplotlib
-        cp matplotlibrc ~/.config/matplotlib
         cd $WORKAREA
         rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
         rel=$(dirname $rel)
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
-        # Jet
+        # Jets
         sed -ie 's/TightSelectedPandoraPFOs/PandoraPFOs/' CLICPerformance/Calorimetry/testCalibJetStudies.xml
         sed -ie "s|/eos.*|$PWD/Output_DST.slcio|" CLICPerformance/Calorimetry/testCalibJetStudies.xml
         Marlin CLICPerformance/Calorimetry/testCalibJetStudies.xml
-
-        # python key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /eos/home-j/jcarcell/Testing_20/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root
-        python3 key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /cvmfs/validation_reference_samples/CLIC_o3_v15/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew_good.root
-        mkdir -p key4hep-reco-validation/www/${GEOMETRY}/jets/plots
-        mv *.png key4hep-reco-validation/www/${GEOMETRY}/jets/plots
 
         # Track validation
         cat << EOF > trackvalidation/cfg/run_script_analysis.json
@@ -114,7 +116,7 @@ plots:
         "Output folder": "./",
 
         "Ntuple types" : ["ttbar3TeV"],
-        "Ntuple names" : ["track_validation_ntuple.root"],
+        "Ntuple names" : ["histograms_all.root"],
         "Histo names"  : ["track_validation_hist.root"],
         "Test Mode": 1
         }
@@ -124,11 +126,29 @@ plots:
         python3 script_analysis.py ../cfg/run_script_analysis.json
         cd -
 
+
+plots:
+    <<: *template-job
+    stage: plot
+    rules:       
+        - if: '$MAKE_REFERENCE_SAMPLE == "no"'
+    script: |
+        mkdir -p ~/.config/matplotlib
+        cp matplotlibrc ~/.config/matplotlib
+        cd $WORKAREA
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(dirname $rel)
+        echo rel is $rel
+        source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
+
+        # python key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /eos/home-j/jcarcell/Testing_20/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root
+        python3 key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /cvmfs/validation_reference_samples/CLIC_o3_v15/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew_good.root
+        mkdir -p key4hep-reco-validation/www/${GEOMETRY}/jets/plots
+        mv *.png key4hep-reco-validation/www/${GEOMETRY}/jets/plots
+
         python3 key4hep-reco-validation/scripts/make_tracking_plots.py tracking_validation_hist.root trackvalidation/run_analysis/histo_muons_1GeV.root
         mkdir -p key4hep-reco-validation/www/${GEOMETRY}/track_validation/plots
         mv *.png key4hep-reco-validation/www/${GEOMETRY}/track_validation/plots
-
-
 
         cd key4hep-reco-validation/web/python
         python3 make_web.py --dest ../../www
