@@ -124,6 +124,7 @@ make-plot-files:
 
         cd trackvalidation/run_analysis
         python3 script_analysis.py ../cfg/run_script_analysis.json
+        mv track_validation_hist.root ../../
         cd -
 
 
