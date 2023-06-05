@@ -116,7 +116,7 @@ make-plot-files:
         "Output folder": "./",
 
         "Ntuple types" : ["ttbar3TeV"],
-        "Ntuple names" : ["histograms_all.root"],
+        "Ntuple names" : ["histograms.root"],
         "Histo names"  : ["track_validation_hist.root"],
         "Test Mode": 1
         }
