@@ -102,12 +102,12 @@ plots:
         Marlin CLICPerformance/Calorimetry/testCalibJetStudies.xml
 
         # python key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /eos/home-j/jcarcell/Testing_20/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root
-        python key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /cvmfs/validation_reference_samples/CLIC_o3_v15/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew_good.root
+        python3 key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /cvmfs/validation_reference_samples/CLIC_o3_v15/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew_good.root
         mkdir -p key4hep-reco-validation/www/${GEOMETRY}/jets/plots
         mv *.png key4hep-reco-validation/www/${GEOMETRY}/jets/plots
 
         cd key4hep-reco-validation/web/python
-        python make_web.py --dest ../../www
+        python3 make_web.py --dest ../../www
     
 
 # -- Deploy to EOS ----------------------------
