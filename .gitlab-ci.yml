@@ -106,6 +106,30 @@ plots:
         mkdir -p key4hep-reco-validation/www/${GEOMETRY}/jets/plots
         mv *.png key4hep-reco-validation/www/${GEOMETRY}/jets/plots
 
+        # Track validation
+        cat << EOF > trackvalidation/cfg/run_script_analysis.json
+        {
+        "Release date" : "2020-02-07",
+        "Input folder" : "$PWD/",
+        "Output folder": "./",
+
+        "Ntuple types" : ["ttbar3TeV"],
+        "Ntuple names" : ["track_validation_ntuple.root"],
+        "Histo names"  : ["track_validation_hist.root"],
+        "Test Mode": 1
+        }
+        EOF
+
+        cd trackvalidation/run_analysis
+        python3 script_analysis.py ../cfg/run_script_analysis.json
+        cd -
+
+        python3 key4hep-reco-validation/scripts/make_tracking_plots.py tracking_validation_hist.root trackvalidation/run_analysis/histo_muons_1GeV.root
+        mkdir -p key4hep-reco-validation/www/${GEOMETRY}/track_validation/plots
+        mv *.png key4hep-reco-validation/www/${GEOMETRY}/track_validation/plots
+
+
+
         cd key4hep-reco-validation/web/python
         python3 make_web.py --dest ../../www
     
