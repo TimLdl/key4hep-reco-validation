@@ -131,6 +131,7 @@ make-plot-files:
 plots:
     <<: *template-job
     stage: plot
+    when: always
     rules:       
         - if: '$MAKE_REFERENCE_SAMPLE == "no"'
     script: |
