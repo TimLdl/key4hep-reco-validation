@@ -6,7 +6,7 @@ variables:
         value: "25"
         description: How many events to run on
     WORKAREA:
-        value: /cvmfs/validation
+        value: "/cvmfs/validation"
         description: Where to run the validation on the runner
     EVENTS_PER_FILE:
         value: "25"
@@ -14,7 +14,20 @@ variables:
     MAKE_REFERENCE_SAMPLE:
         value: "no"
         description: Whether to only make a reference sample for later use
+    STEERING_FILE_SIM:
+        value: "https://github.com/iLCSoft/CLICPerformance/blob/master/clicConfig/clic_steer.py"
+        description: Full path to the steering file for simulation (github or gitlab repo)
+    STEERING_FILE_REC:
+        value: "https://github.com/iLCSoft/CLICPerformance/blob/master/clicConfig/clic_steer.py"
+        description: Full path to the steering file for reconstruction (github or gitlab repo)
 
+# The validation workflow expect several things:
+# - a GEOMETRY folder that can be found in k4geo. This folder contains a GEOMETRY.xml file
+#   (for example CLIC_o3_v15 contains CLIC_o3_v15.xml)
+# - a steering file for simulation. The full path to the file in github or gitlab is expected
+#   (for example https://github.com/iLCSoft/CLICPerformance/blob/master/clicConfig/clic_steer.py)
+# - a steering file for reconstruction. The full path to the file in github or gitlab is expected
+#   (for example )
 stages:
     - setup
     - simulate
@@ -47,11 +60,44 @@ prepare:
 
         # rm trackvalidation CLICPerformance key4hep-reco-validation -rf
         git clone https://github.com/jmcarcell/trackvalidation --depth 1
-        git clone https://github.com/iLCSoft/CLICPerformance --depth 1
         git clone https://github.com/key4hep/key4hep-reco-validation --depth 1
+
         # Copy the geometry locally, avoid possible issues with equal signs in the path
         path=$(find ${LCGEO} -name ${GEOMETRY} -type d)
         cp $path . -r
+
+        if echo "$STEERING_FILE_SIM" | grep -q "github"; then
+            repository=$(echo "$STEERING_FILE_SIM" | sed -n 's|https://github.com/\([^/]\+/[^/]\+\).*|\1|p')
+            echo "Steering file found in the repository: $repository"
+            git clone "https://github.com/$repository.git" --depth 1
+            file_path=$(echo "$STEERING_PATH" | sed "s|https://github.com/$repository/blob/master/||")
+        elif echo "$STEERING_FILE_SIM" | grep -q "gitlab"; then
+            repository=$(echo "$STEERING_FILE_SIM" | sed -n 's|https://gitlab.com/\([^/]\+/[^/]\+\).*|\1|p')
+            echo "Steering file found in the repository: $repository"
+            git clone "https://gitlab.com/$repository.git" --depth 1
+            file_path=$(echo "$STEERING_FILE_SIM" | sed "s|https://gitlab.com/$repository/blob/master/||")
+        else
+            echo "Unknown repository type"
+        fi
+
+        cp $file_path steering_file_sim.py
+
+
+        if echo "$STEERING_FILE_REC" | grep -q "github"; then
+            repository=$(echo "$STEERING_FILE_REC" | sed -n 's|https://github.com/\([^/]\+/[^/]\+\).*|\1|p')
+            echo "Steering file found in the repository: $repository"
+            git clone "https://github.com/$repository.git" --depth 1
+            file_path=$(echo "$STEERING_PATH" | sed "s|https://github.com/$repository/blob/master/||")
+        elif echo "$STEERING_FILE_REC" | grep -q "gitlab"; then
+            repository=$(echo "$STEERING_FILE_REC" | sed -n 's|https://gitlab.com/\([^/]\+/[^/]\+\).*|\1|p')
+            echo "Steering file found in the repository: $repository"
+            git clone "https://gitlab.com/$repository.git" --depth 1
+            file_path=$(echo "$STEERING_FILE_REC" | sed "s|https://gitlab.com/$repository/blob/master/||")
+        else
+            echo "Unknown repository type"
+        fi
+
+        cp $file_path steering_file_sim.xml
 
 simulation:
     <<: *template-job
@@ -69,7 +115,7 @@ simulation:
         for ((i=0; i<${#ary[*]}; i++)); do
             echo $i
             echo ${ary[i]}
-            job_commands+=("ddsim --compactFile ${GEOMETRY}/${GEOMETRY}.xml --outputFile sim$i.slcio --steeringFile CLICPerformance/clicConfig/clic_steer.py --inputFiles ${ary[i]} --numberOfEvents $EVENTS_PER_FILE")
+            job_commands+=("ddsim --compactFile ${GEOMETRY}/${GEOMETRY}.xml --outputFile sim$i.slcio --steeringFile steering_file_sim.py --inputFiles ${ary[i]} --numberOfEvents $EVENTS_PER_FILE")
         done
         run_job() {
             eval "$1"
@@ -88,8 +134,7 @@ reconstruction:
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
-        cd CLICPerformance/clicConfig
-        Marlin clicReconstruction.xml --InitDD4hep.DD4hepXMLFile=../../${GEOMETRY}/${GEOMETRY}.xml --global.LCIOInputFiles=../../sim.slcio
+        Marlin steering_file_rec.xml --InitDD4hep.DD4hepXMLFile=../../${GEOMETRY}/${GEOMETRY}.xml --global.LCIOInputFiles=../../sim.slcio
         mv Output_DST.slcio Output_REC.slcio histograms.root ../../
 
 make-plot-files:
