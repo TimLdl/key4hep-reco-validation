@@ -148,7 +148,7 @@ plots:
         mkdir -p key4hep-reco-validation/www/${GEOMETRY}/jets/plots
         mv *.png key4hep-reco-validation/www/${GEOMETRY}/jets/plots
 
-        python3 key4hep-reco-validation/scripts/make_tracking_plots.py tracking_validation_hist.root trackvalidation/run_analysis/histo_muons_1GeV.root
+        python3 key4hep-reco-validation/scripts/make_tracking_plots.py track_validation_hist.root track_validation_hist.root
         mkdir -p key4hep-reco-validation/www/${GEOMETRY}/track_validation/plots
         mv *.png key4hep-reco-validation/www/${GEOMETRY}/track_validation/plots
 
