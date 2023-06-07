@@ -58,6 +58,7 @@ prepare:
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
+        alias git=/usr/bin/git
         # rm trackvalidation CLICPerformance key4hep-reco-validation -rf
         git clone https://github.com/jmcarcell/trackvalidation --depth 1
         git clone https://github.com/key4hep/key4hep-reco-validation --depth 1
