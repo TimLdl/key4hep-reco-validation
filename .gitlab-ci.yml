@@ -18,7 +18,7 @@ variables:
         value: "https://github.com/iLCSoft/CLICPerformance/blob/master/clicConfig/clic_steer.py"
         description: Full path to the steering file for simulation (github or gitlab repo)
     STEERING_FILE_REC:
-        value: "https://github.com/iLCSoft/CLICPerformance/blob/master/clicConfig/clic_steer.py"
+        value: "https://github.com/iLCSoft/CLICPerformance/blob/master/clicConfig/clicReconstruction.xml"
         description: Full path to the steering file for reconstruction (github or gitlab repo)
 
 # The validation workflow expect several things:
