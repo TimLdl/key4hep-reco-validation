@@ -72,7 +72,7 @@ prepare:
             repository=$(echo "$STEERING_FILE_SIM" | sed -n 's|https://github.com/\([^/]\+/[^/]\+\).*|\1|p')
             echo "Steering file found in the repository: $repository"
             git clone "https://github.com/$repository.git" --depth 1
-            file_path=$(echo "$STEERING_PATH" | sed "s|https://github.com/$repository/blob/master/||")
+            file_path=$(echo "$STEERING_FILE_SIM" | sed "s|https://github.com/$repository/blob/master/||")
         elif echo "$STEERING_FILE_SIM" | grep -q "gitlab"; then
             repository=$(echo "$STEERING_FILE_SIM" | sed -n 's|https://gitlab.com/\([^/]\+/[^/]\+\).*|\1|p')
             echo "Steering file found in the repository: $repository"
@@ -89,7 +89,7 @@ prepare:
             repository=$(echo "$STEERING_FILE_REC" | sed -n 's|https://github.com/\([^/]\+/[^/]\+\).*|\1|p')
             echo "Steering file found in the repository: $repository"
             git clone "https://github.com/$repository.git" --depth 1
-            file_path=$(echo "$STEERING_PATH" | sed "s|https://github.com/$repository/blob/master/||")
+            file_path=$(echo "$STEERING_FILE_REC" | sed "s|https://github.com/$repository/blob/master/||")
         elif echo "$STEERING_FILE_REC" | grep -q "gitlab"; then
             repository=$(echo "$STEERING_FILE_REC" | sed -n 's|https://gitlab.com/\([^/]\+/[^/]\+\).*|\1|p')
             echo "Steering file found in the repository: $repository"
