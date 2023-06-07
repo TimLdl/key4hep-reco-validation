@@ -102,7 +102,7 @@ prepare:
             echo "Unknown repository type"
         fi
 
-        cp $file_path steering_file_sim.xml
+        cp $file_path steering_file_rec.xml
 
 simulation:
     <<: *template-job
@@ -132,6 +132,7 @@ simulation:
 reconstruction:
     <<: *template-job
     stage: reconstruct
+    when: always
     script: |
         cd $WORKAREA
         rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
