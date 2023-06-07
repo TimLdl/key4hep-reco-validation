@@ -58,7 +58,12 @@ prepare:
     <<: *template-job
     stage: setup
     script: |
-        *source-nightly
+        mkdir -p $WORKAREA
+        cd $WORKAREA
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(dirname $rel)
+        echo rel is $rel
+        source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
         export LD_LIBRARY_PATH=/cvmfs/sw-nightlies.hsf.org/key4hep/releases/2023-05-30/x86_64-almalinux9-gcc11.3.1-opt/gettext/0.21.1-a4dkr6/lib:$LD_LIBRARY_PATH
         export LD_LIBRARY_PATH=/cvmfs/sw-nightlies.hsf.org/key4hep/releases/2023-05-30/x86_64-almalinux9-gcc11.3.1-opt/libiconv/1.17-54glgi/lib:$LD_LIBRARY_PATH
