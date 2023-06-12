@@ -204,6 +204,7 @@ metadata:
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
+        cd key4hep-reco-validation/web/python
         echo "key4hep-spack: $(cat $rel/.key4hep-spack-commit)" > metadata.yaml
         echo "spack: $(cat $rel/spack-commit)" >> metadata.yaml
         echo "nightly: $rel" >> metadata.yaml
