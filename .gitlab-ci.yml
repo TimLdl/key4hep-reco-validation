@@ -148,7 +148,7 @@ reconstruction:
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
         
         cd $(dirname $(readlink ${STEERING_FILE_REC}))
-        Marlin $(basename ${STEERING_FILE_REC}}) --InitDD4hep.DD4hepXMLFile=${WORKAREA}/${GEOMETRY}/${GEOMETRY}.xml --global.LCIOInputFiles=${WORKAREA}/sim.slcio
+        Marlin $(basename ${STEERING_FILE_REC}) --InitDD4hep.DD4hepXMLFile=${WORKAREA}/${GEOMETRY}/${GEOMETRY}.xml --global.LCIOInputFiles=${WORKAREA}/sim.slcio
         mv Output_DST.slcio Output_REC.slcio histograms.root ${WORKAREA}
 
 make-plot-files:
