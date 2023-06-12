@@ -3,7 +3,7 @@ variables:
         value: CLIC_o3_v15
         description: Which geometry to use
     REFERENCE_SAMPLE:
-        value: /cvmfs/validation_reference_samples/CLIC_o3_v15/
+        value: "/cvmfs/validation_reference_samples/CLIC_o3_v15/"
         description: Where to find the reference sample
     NUMBER_OF_EVENTS:
         value: "25"
@@ -224,14 +224,16 @@ plots:
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
-        # python key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /eos/home-j/jcarcell/Testing_20/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root
-        python3 key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /cvmfs/validation_reference_samples/CLIC_o3_v15/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew_good.root
-        mkdir -p key4hep-reco-validation/www/${GEOMETRY}/jets/plots
-        mv *.png key4hep-reco-validation/www/${GEOMETRY}/jets/plots
+        python key4hep-reco-validation/scripts/plot_runner.py jets --reference ${REFERENCE_SAMPLE} --output key4hep-reco-validation/www/${GEOMETRY}
 
-        python3 key4hep-reco-validation/scripts/make_tracking_plots.py track_validation_hist.root track_validation_hist.root
-        mkdir -p key4hep-reco-validation/www/${GEOMETRY}/track_validation/plots
-        mv *.png key4hep-reco-validation/www/${GEOMETRY}/track_validation/plots
+        # python key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /eos/home-j/jcarcell/Testing_20/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root
+        # python3 key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /cvmfs/validation_reference_samples/CLIC_o3_v15/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew_good.root
+        # mkdir -p key4hep-reco-validation/www/${GEOMETRY}/jets/plots
+        # mv *.png key4hep-reco-validation/www/${GEOMETRY}/jets/plots
+
+        # python3 key4hep-reco-validation/scripts/make_tracking_plots.py track_validation_hist.root track_validation_hist.root
+        # mkdir -p key4hep-reco-validation/www/${GEOMETRY}/track_validation/plots
+        # mv *.png key4hep-reco-validation/www/${GEOMETRY}/track_validation/plots
 
         cd key4hep-reco-validation/web/python
         python3 make_web.py --dest ../../www
