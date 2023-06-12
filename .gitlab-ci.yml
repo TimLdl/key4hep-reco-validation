@@ -223,9 +223,7 @@ plots:
 # EOS_ACCOUNT_USERNAME: xxx
 # EOS_PATH: /eos/project-k/key4hep/www/edm4hep/
 # METHOD: rsync
-# are set in the repository https://gitlab.cern.ch/key4hep/edm4hep,
-# which mirrors https://github.com/key4hep/edm4hep
-# In particular, the service account key4hep is used to write
+# The service account key4hep is used to write
 # to the eos space /eos/project/k/key4hep/www/edm4hep
 # Other accounts which are part of the e-groups
 # cernbox-project-key4hep-{readers|writers} may be used.
