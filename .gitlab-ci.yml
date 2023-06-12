@@ -147,7 +147,7 @@ reconstruction:
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
         
-        cd $(dirname $(readlink ${STEERING_FILE_REC}))
+        cd $(dirname $(readlink steering_file_rec.xml))
         Marlin $(basename ${STEERING_FILE_REC}) --InitDD4hep.DD4hepXMLFile=${WORKAREA}/${GEOMETRY}/${GEOMETRY}.xml --global.LCIOInputFiles=${WORKAREA}/sim.slcio
         mv Output_DST.slcio Output_REC.slcio histograms.root ${WORKAREA}
 
