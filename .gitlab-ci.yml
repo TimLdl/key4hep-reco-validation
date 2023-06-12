@@ -2,6 +2,9 @@ variables:
     GEOMETRY:
         value: CLIC_o3_v15
         description: Which geometry to use
+    REFERENCE_SAMPLE:
+        value: /cvmfs/validation_reference_samples/CLIC_o3_v15/
+        description: Where to find the reference sample
     NUMBER_OF_EVENTS:
         value: "25"
         description: How many events to run on
