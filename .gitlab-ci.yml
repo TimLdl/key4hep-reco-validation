@@ -175,6 +175,9 @@ datamodels:
         podio_tags=$(git tag -l | grep -vE "v00-0" | grep -vE "v00-1[0-5]") 
         cd ..
 
+
+        echo $edm4hep_tags
+        echo $podio_tags
         j=0
         for tag in $podio_tags; do
             date_podio=$(cd podio && git show --format="%ai" $tag | head -n 1)
