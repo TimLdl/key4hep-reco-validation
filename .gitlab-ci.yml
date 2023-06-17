@@ -1,8 +1,7 @@
 variables:
     VALIDATION_JOB_TYPE:
         value: "datamodels"
-        description: Which type of validation job to run. Available:
-        simreco and datamodels
+        description: "Which type of validation job to run: simreco or datamodels"
     GEOMETRY:
         value: CLIC_o3_v15
         description: Which geometry to use
@@ -65,6 +64,12 @@ stages:
         changes:
             - never
 
+.template-datamodels-job: &template-datamodels-job
+    <<: *template-job
+    rules:
+      - if: '$VALIDATION_JOB_TYPE == "datamodels"'
+        changes:
+            - never
 
 .template-deploy-job: &template-deploy-job
     image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer:latest
@@ -128,13 +133,15 @@ prepare:
 
         ln -s $file_path steering_file_rec.xml 
 
+.generate-edm-samples:
+    <<: *template-simreco-job
+    stage: generate-edm-samples
+    script: |
+        git clone https://github.com/AIDASoft/podio.git
+
 datamodels:
     <<: *template-job
     stage: datamodels
-    rules:
-      - if: '$VALIDATION_JOB_TYPE == "datamodels"'
-        changes:
-            - never
     script: |
         mkdir -p $WORKAREA
         cd $WORKAREA
@@ -321,11 +328,6 @@ plots:
         python3 make_web.py --dest ../../www
 
 
-generate-edm-samples:
-    <<: *template-simreco-job
-    stage: generate-edm-samples
-    script: |
-        git clone https://github.com/AIDASoft/podio.git
 
 
 
