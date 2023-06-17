@@ -157,6 +157,7 @@ prepare-datamodels:
 datamodels:
     <<: *template-datamodels-job
     stage: datamodels
+    when: always
     script: |
         mkdir -p $WORKAREA
         cd $WORKAREA
