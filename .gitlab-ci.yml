@@ -152,6 +152,7 @@ prepare-datamodels:
 generate-edm-samples:
     <<: *template-datamodels-job
     stage: generate-edm-sample
+    when: always
     rules:
         - if: '$MAKE_REFERENCE_SAMPLE == "yes"'
     script: |
