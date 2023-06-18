@@ -215,6 +215,11 @@ generate-edm-samples:
             cd ..
             cd ..
 
+            python key4hep-reco-validation/datamodels/make_read_and_write.py
+            g++ -I$podio_DIR/include -I$EDM4HEP_DIR/../edm4hep -I$ROOTSYS/include/root -L$podio_DIR/lib -L$podio_DIR/lib64 -L$EDM4HEP_DIR/lib -L$EDM4HEP_DIR/lib64 -L$ROOTSYS/lib/root -ledm4hep -lpodioRootIO -lpodio -lCore --std=gnu++17 -Wno-unused-parameter -Wno-unused-variable -Wpedantic -Wextra -Wall -fPIC write.cpp -o write_frame_edm4hep
+            ./write_frame_edm4hep
+            mv test.root frame-${podio_tags[i]}-${edm4hep_tags[j]}.root
+
             if [[ $i -eq $(( ${#podio_tags[@]} - 1 )) ]]; then
                 (( j += 1 ))
                 continue
@@ -238,10 +243,6 @@ generate-edm-samples:
             fi
 
 
-            python key4hep-reco-validation/datamodels/make_read_and_write.py
-            g++ -I$podio_DIR/include -I$EDM4HEP_DIR/../edm4hep -I$ROOTSYS/include/root -L$podio_DIR/lib -L$podio_DIR/lib64 -L$EDM4HEP_DIR/lib -L$EDM4HEP_DIR/lib64 -L$ROOTSYS/lib/root -ledm4hep -lpodioRootIO -lpodio -lCore --std=gnu++17 -Wno-unused-parameter -Wno-unused-variable -Wpedantic -Wextra -Wall -fPIC write.cpp -o write_frame_edm4hep
-            ./write_frame_edm4hep
-            mv test.root frame-$tag-${edm4hep_tags[j]}.root
         done
 
 datamodels:
