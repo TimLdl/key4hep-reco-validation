@@ -198,6 +198,7 @@ generate-edm-samples:
             echo "tags: ${podio_tags[$i]} ${edm4hep_tags[$j]}"
 
             cd podio
+            git reset --hard HEAD
             git checkout ${podio_tags[i]}
             mkdir -p build
             cd build
@@ -207,6 +208,7 @@ generate-edm-samples:
             cd ..
 
             cd EDM4hep
+            git reset --hard HEAD
             git checkout ${edm4hep_tags[j]}
             mkdir -p build
             cd build
