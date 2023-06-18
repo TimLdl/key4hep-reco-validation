@@ -178,7 +178,7 @@ generate-edm-samples:
 
         export podio_DIR=$(pwd)/podio/install
         export EDM4HEP_DIR=$(pwd)/EDM4hep/install
-        export LD_LIBRARY_PATH=$podio_DIR/lib:$EDM4HEP_DIR/lib:$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=$podio_DIR/lib:$podio_DIR/lib64:$EDM4HEP_DIR/lib:$EDM4HEP_DIR/lib64:$ROOTSYS/lib/root:$LD_LIBRARY_PATH
         export ROOT_INCLUDE_PATH=$EDM4HEP_DIR/include:$podio_DIR/include:$ROOT_INCLUDE_PATH
 
         for tag in $podio_tags; do
