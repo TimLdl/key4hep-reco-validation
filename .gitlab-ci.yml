@@ -149,7 +149,7 @@ prepare-datamodels:
         git clone https://github.com/key4hep/key4hep-reco-validation.git
 
 .generate-edm-samples:
-    <<: *template-simreco-job
+    <<: *template-datamodels-job
     stage: generate-edm-samples
     rules:
         - if: '$MAKE_REFERENCE_SAMPLE == "yes"'
