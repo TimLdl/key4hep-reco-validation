@@ -151,8 +151,71 @@ prepare-datamodels:
 .generate-edm-samples:
     <<: *template-simreco-job
     stage: generate-edm-samples
+    rules:
+        - if: '$MAKE_REFERENCE_SAMPLE == "yes"'
     script: |
-        git clone https://github.com/AIDASoft/podio.git
+        mkdir -p $WORKAREA
+        cd $WORKAREA
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(dirname $rel)
+        echo rel is $rel
+        source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
+
+        cd EDM4hep
+        edm4hep_tags=($(git tag -l | grep -vE "v00-0[0-6]"))
+        cd ..
+
+        cd podio
+        # Keep only tags above v00-16, where the Frame was introduced
+        podio_tags=$(git tag -l | grep -vE "v00-0" | grep -vE "v00-1[0-5]") 
+        cd ..
+
+        echo $edm4hep_tags
+        echo $podio_tags
+        j=0
+
+        export podio_DIR=$(pwd)/podio/install
+        export EDM4HEP_DIR=$(pwd)/EDM4hep/install
+        export LD_LIBRARY_PATH=$podio_DIR/lib:$EDM4HEP_DIR/lib::$LD_LIBRARY_PATH
+        export ROOT_INCLUDE_PATH=$EDM4HEP_DIR/include:$podio_DIR/include:$ROOT_INCLUDE_PATH
+
+        for tag in $podio_tags; do
+            date_podio=$(cd podio && git show --format="%ai" $tag | head -n 1)
+            date_edm4hep=$(cd EDM4hep && git show --format="%ai" ${edm4hep_tags[j]} | head -n 1)
+            if [[ $date_podio > $date_edm4hep ]]; then
+                j=$((j+1))
+                continue
+            fi
+
+            echo tag is $tag
+            echo $date_podio
+            echo $date_edm4hep
+
+
+            cd podio
+            git checkout $tag
+            mkdir -p build
+            cd build
+            cmake .. -DCMAKE_INSTALL_PREFIX=../install -DPODIO_USE_CLANG_FORMAT=OFF
+            cmake --build . -j $(nproc) -t install
+            cd ..
+            cd ..
+
+            cd EDM4hep
+            git checkout ${edm4hep_tags[j]}
+            mkdir -p build
+            cd build
+            cmake .. -DCMAKE_INSTALL_PREFIX=../install
+            cmake --build . -j $(nproc) -t install
+            cd ..
+            cd ..
+
+
+            python key4hep-reco-validation/datamodels/make_read_and_write.py
+            g++ -I$podio_DIR/include -I$EDM4HEP_DIR/../edm4hep -I$ROOTSYS/include/root -L$podio_DIR/lib -L$podio_DIR/lib64 -L$EDM4HEP_DIR/lib -L$EDM4HEP_DIR/lib64 -L$ROOTSYS/lib/root -ledm4hep -lpodioRootIO -lpodio -lCore --std=gnu++17 -Wno-unused-parameter -Wno-unused-variable -Wpedantic -Wextra -Wall -fPIC write.cpp -o write_frame_edm4hep
+            ./write_frame_edm4hep
+            break
+        done
 
 datamodels:
     <<: *template-datamodels-job
@@ -166,58 +229,16 @@ datamodels:
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
-        cd EDM4hep
-        edm4hep_tags=$(git tag -l | grep -vE "v00-0[0-6]")
-        cd ..
-
         cd podio
-        # Keep only tags above v00-16, where the Frame was introduced
-        podio_tags=$(git tag -l | grep -vE "v00-0" | grep -vE "v00-1[0-5]") 
+        git checkout master
+        cd ..
+        cd EDM4hep
+        git checkout master
         cd ..
 
-
-        echo $edm4hep_tags
-        echo $podio_tags
-        j=0
-        for tag in $podio_tags; do
-            date_podio=$(cd podio && git show --format="%ai" $tag | head -n 1)
-            date_edm4hep=$(cd EDM4hep && git show --format="%ai" ${edm4hep_tags[j]} | head -n 1)
-            if [[ $date_podio > $date_edm4hep ]]; then
-                j=$((j+1))
-                continue
-            fi
-
-            echo $tag
-            echo $date_podio
-            echo $date_edm4hep
-
-            cd podio
-            git checkout $tag
-            mkdir -p build
-            cd build
-            cmake .. -DCMAKE_INSTALL_PREFIX=../install -DPODIO_USE_CLANG_FORMAT=OFF
-            cmake --build . -j $(nproc)
-            cd ..
-            export podio_DIR=$(pwd)/install
-
-            cd ../EDM4hep
-            git checkout ${edm4hep_tags[j]}
-            mkdir -p build
-            cd build
-            cmake .. -DCMAKE_INSTALL_PREFIX=../install
-            cmake --build . -j $(nproc)
-            cd ..
-            export EDM4HEP_DIR=$(pwd)/install
-
-            export LD_LIBRARY_PATH=$podio_DIR/lib:$EDM4HEP_DIR/lib
-
-            python key4hep-reco-validation/datamodels/make_read_and_write.py
-            g++ -I$podio_DIR/include -I$EDM4HEP_DIR/../edm4hep -L$podio_DIR/lib -L$EDM4HEP_DIR/lib -ledm4hep -lpodioRootIO -lpodio -lCore --std=gnu++17 -Wno-unused-parameter -Wno-unused-variable -Wpedantic -Wextra -Wall -fPIC write.cpp -o write_frame_edm4hep
-            g++ -I$podio_DIR/include -I$EDM4HEP_DIR/../edm4hep -L$podio_DIR/lib -L$EDM4HEP_DIR/lib -ledm4hep -lpodioRootIO -lpodio -lCore --std=gnu++17 -Wno-unused-parameter -Wno-unused-variable -Wpedantic -Wextra -Wall -fPIC read.cpp -o read_frame_edm4hep
-            ./write_frame_edm4hep
-            ./read_frame_edm4hep
-            break
-        done
+        python key4hep-reco-validation/datamodels/make_read_and_write.py
+        g++ -I$podio_DIR/include -I$EDM4HEP_DIR/../edm4hep -I$ROOTSYS/include/root -L$podio_DIR/lib -L$podio_DIR/lib64 -L$EDM4HEP_DIR/lib -L$EDM4HEP_DIR/lib64 -L$ROOTSYS/lib/root -ledm4hep -lpodioRootIO -lpodio -lCore --std=gnu++17 -Wno-unused-parameter -Wno-unused-variable -Wpedantic -Wextra -Wall -fPIC read.cpp -o read_frame_edm4hep
+        ./read_frame_edm4hep
 
 simulation:
     <<: *template-simreco-job
