@@ -169,30 +169,55 @@ generate-edm-samples:
 
         cd podio
         # Keep only tags above v00-16, where the Frame was introduced
-        podio_tags=$(git tag -l | grep -vE "v00-0" | grep -vE "v00-1[0-5]") 
+        podio_tags=($(git tag -l | grep -vE "v00-0" | grep -vE "v00-1[0-5]"))
         cd ..
 
-        echo $edm4hep_tags
-        echo $podio_tags
-        j=0
+        podio_dates=()
+        for tag in $podio_tags; do
+            date_podio=$(cd podio && git show --format="%ai" $tag | head -n 1)
+            podio_dates+=("$date_podio")
+        done
+
+        edm4hep_dates=()
+        for tag in ${edm4hep_tags[@]}; do
+            date_edm4hep=$(cd EDM4hep && git show --format="%ai" $tag | head -n 1)
+            edm4hep_dates+=("$date_edm4hep")
+        done
+
+        echo ${edm4hep_tags[@]}
+        echo ${podio_tags[@]}
 
         export podio_DIR=$(pwd)/podio/install
         export EDM4HEP_DIR=$(pwd)/EDM4hep/install
         export LD_LIBRARY_PATH=$podio_DIR/lib:$podio_DIR/lib64:$EDM4HEP_DIR/lib:$EDM4HEP_DIR/lib64:$ROOTSYS/lib/root:$LD_LIBRARY_PATH
         export ROOT_INCLUDE_PATH=$EDM4HEP_DIR/include:$podio_DIR/include:$ROOT_INCLUDE_PATH
 
-        for tag in $podio_tags; do
-            date_podio=$(cd podio && git show --format="%ai" $tag | head -n 1)
-            date_edm4hep=$(cd EDM4hep && git show --format="%ai" ${edm4hep_tags[j]} | head -n 1)
-            if [[ $date_podio > $date_edm4hep ]]; then
-                j=$((j+1))
+        i=0
+        j=0
+        while [[ $i -lt ${#podio_tags[@]} && $j -lt ${#edm4hep_tags[@]} ]]; do
+            echo "tags: ${podio_tags[$i]} ${edm4hep_tags[$j]}"
+
+            if [[ $i -eq $(( ${#podio_tags[@]} - 1 )) ]]; then
+                (( j += 1 ))
                 continue
             fi
 
-            echo tag is $tag
-            echo $date_podio
-            echo $date_edm4hep
+            if [[ $j -eq $(( ${#edm4hep_tags[@]} - 1 )) ]]; then
+                (( i += 1 ))
+                continue
+            fi
 
+            echo ${edm4hep_dates[$((j+1))]}
+            echo ${podio_dates[$((i+1))]}
+            if [[ ${edm4hep_dates[$((j+1))]} < ${podio_dates[$((i+1))]} ]]; then
+                (( j += 1 ))
+                continue
+            fi
+
+            if [[ "${edm4hep_dates[$((j+1))]}" > "${podio_dates[$((i+1))]}" ]]; then
+                (( i += 1 ))
+                continue
+            fi
 
             cd podio
             git checkout $tag
@@ -212,11 +237,10 @@ generate-edm-samples:
             cd ..
             cd ..
 
-
             python key4hep-reco-validation/datamodels/make_read_and_write.py
             g++ -I$podio_DIR/include -I$EDM4HEP_DIR/../edm4hep -I$ROOTSYS/include/root -L$podio_DIR/lib -L$podio_DIR/lib64 -L$EDM4HEP_DIR/lib -L$EDM4HEP_DIR/lib64 -L$ROOTSYS/lib/root -ledm4hep -lpodioRootIO -lpodio -lCore --std=gnu++17 -Wno-unused-parameter -Wno-unused-variable -Wpedantic -Wextra -Wall -fPIC write.cpp -o write_frame_edm4hep
             ./write_frame_edm4hep
-            break
+            mv test.root frame-$tag-${edm4hep_tags[j]}.root
         done
 
 datamodels:
