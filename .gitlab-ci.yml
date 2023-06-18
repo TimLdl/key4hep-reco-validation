@@ -36,6 +36,7 @@ variables:
 #   (for example )
 stages:
     - setup
+    - generate-edm-sample
     - datamodels
     - simulate
     - reconstruct
@@ -150,7 +151,7 @@ prepare-datamodels:
 
 generate-edm-samples:
     <<: *template-datamodels-job
-    stage: generate-edm-samples
+    stage: generate-edm-sample
     rules:
         - if: '$MAKE_REFERENCE_SAMPLE == "yes"'
     script: |
