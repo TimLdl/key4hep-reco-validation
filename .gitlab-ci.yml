@@ -197,6 +197,24 @@ generate-edm-samples:
         while [[ $i -lt ${#podio_tags[@]} && $j -lt ${#edm4hep_tags[@]} ]]; do
             echo "tags: ${podio_tags[$i]} ${edm4hep_tags[$j]}"
 
+            cd podio
+            git checkout ${podio_tags[i]}
+            mkdir -p build
+            cd build
+            cmake .. -DCMAKE_INSTALL_PREFIX=../install -DPODIO_USE_CLANG_FORMAT=OFF
+            cmake --build . -j $(nproc) -t install
+            cd ..
+            cd ..
+
+            cd EDM4hep
+            git checkout ${edm4hep_tags[j]}
+            mkdir -p build
+            cd build
+            cmake .. -DCMAKE_INSTALL_PREFIX=../install
+            cmake --build . -j $(nproc) -t install
+            cd ..
+            cd ..
+
             if [[ $i -eq $(( ${#podio_tags[@]} - 1 )) ]]; then
                 (( j += 1 ))
                 continue
@@ -219,23 +237,6 @@ generate-edm-samples:
                 continue
             fi
 
-            cd podio
-            git checkout $tag
-            mkdir -p build
-            cd build
-            cmake .. -DCMAKE_INSTALL_PREFIX=../install -DPODIO_USE_CLANG_FORMAT=OFF
-            cmake --build . -j $(nproc) -t install
-            cd ..
-            cd ..
-
-            cd EDM4hep
-            git checkout ${edm4hep_tags[j]}
-            mkdir -p build
-            cd build
-            cmake .. -DCMAKE_INSTALL_PREFIX=../install
-            cmake --build . -j $(nproc) -t install
-            cd ..
-            cd ..
 
             python key4hep-reco-validation/datamodels/make_read_and_write.py
             g++ -I$podio_DIR/include -I$EDM4HEP_DIR/../edm4hep -I$ROOTSYS/include/root -L$podio_DIR/lib -L$podio_DIR/lib64 -L$EDM4HEP_DIR/lib -L$EDM4HEP_DIR/lib64 -L$ROOTSYS/lib/root -ledm4hep -lpodioRootIO -lpodio -lCore --std=gnu++17 -Wno-unused-parameter -Wno-unused-variable -Wpedantic -Wextra -Wall -fPIC write.cpp -o write_frame_edm4hep
