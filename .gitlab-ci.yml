@@ -277,7 +277,7 @@ datamodels:
 
         source key4hep-reco-validation/datamodels/run_test.sh
         for f in $(ls frame-*.root); do
-          cp $f frame.root
+          cp $f test.root
           run_test "$f" ./read_frame_edm4hep
         done
 
