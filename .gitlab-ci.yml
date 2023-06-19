@@ -199,6 +199,7 @@ generate-edm-samples:
 
             cd podio
             git reset --hard HEAD
+            git clean -fdx
             git checkout ${podio_tags[i]}
             mkdir -p build
             cd build
@@ -209,6 +210,7 @@ generate-edm-samples:
 
             cd EDM4hep
             git reset --hard HEAD
+            git clean -fdx
             git checkout ${edm4hep_tags[j]}
             mkdir -p build
             cd build
@@ -266,9 +268,18 @@ datamodels:
         git checkout master
         cd ..
 
+        podio_DIR=$(echo "$CMAKE_PREFIX_PATH" | grep -o "/[^:]*podio[^:]*")
+        EDM4HEP_DIR=$(echo "$CMAKE_PREFIX_PATH" | grep -o "/[^:]*edm4hep/[^:]*")
+        LD_LIBRARY_PATH=$podio_DIR/lib:$podio_DIR/lib64:$EDM4HEP_DIR/lib:$EDM4HEP_DIR/lib64:$ROOTSYS/lib/root:$LD_LIBRARY_PATH
+
         python key4hep-reco-validation/datamodels/make_read_and_write.py
-        g++ -I$podio_DIR/include -I$EDM4HEP_DIR/../edm4hep -I$ROOTSYS/include/root -L$podio_DIR/lib -L$podio_DIR/lib64 -L$EDM4HEP_DIR/lib -L$EDM4HEP_DIR/lib64 -L$ROOTSYS/lib/root -ledm4hep -lpodioRootIO -lpodio -lCore --std=gnu++17 -Wno-unused-parameter -Wno-unused-variable -Wpedantic -Wextra -Wall -fPIC read.cpp -o read_frame_edm4hep
-        ./read_frame_edm4hep
+        g++ -I$podio_DIR/include -I$EDM4HEP_DIR/include -I$ROOTSYS/include/root -L$podio_DIR/lib -L$podio_DIR/lib64 -L$EDM4HEP_DIR/lib -L$EDM4HEP_DIR/lib64 -L$ROOTSYS/lib/root -ledm4hep -lpodioRootIO -lpodio -lCore --std=gnu++17 -Wno-unused-parameter -Wno-unused-variable -Wpedantic -Wextra -Wall -fPIC read.cpp -o read_frame_edm4hep
+
+        source key4hep-reco-validation/datamodels/run_test.sh
+        for f in $(ls frame-*.root); do
+          cp $f frame.root
+          run_test "$f" ./read_frame_edm4hep
+        done
 
 simulation:
     <<: *template-simreco-job
