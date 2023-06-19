@@ -275,11 +275,7 @@ datamodels:
         python key4hep-reco-validation/datamodels/make_read_and_write.py
         g++ -I$podio_DIR/include -I$EDM4HEP_DIR/include -I$ROOTSYS/include/root -L$podio_DIR/lib -L$podio_DIR/lib64 -L$EDM4HEP_DIR/lib -L$EDM4HEP_DIR/lib64 -L$ROOTSYS/lib/root -ledm4hep -lpodioRootIO -lpodio -lCore --std=gnu++17 -Wno-unused-parameter -Wno-unused-variable -Wpedantic -Wextra -Wall -fPIC read.cpp -o read_frame_edm4hep
 
-        source key4hep-reco-validation/datamodels/run_test.sh
-        for f in $(ls frame-*.root); do
-          cp $f test.root
-          run_test "$f" ./read_frame_edm4hep
-        done
+        ./key4hep-reco-validation/datamodels/run_test.sh $(ls frame-*.root)
 
 simulation:
     <<: *template-simreco-job
