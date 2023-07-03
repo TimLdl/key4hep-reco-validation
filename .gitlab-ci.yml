@@ -56,7 +56,7 @@ stages:
 .template-job: &template-job
     image: gitlab-registry.cern.ch/key4hep/k4-deploy/alma9-build
     tags:
-        - alma9
+        - validation
 
 .template-simreco-job: &template-simreco-job
     <<: *template-job
@@ -75,7 +75,7 @@ stages:
 .template-deploy-job: &template-deploy-job
     image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer:latest
     tags:
-        - alma9
+        - validation
     
 prepare-simreco:
     <<: *template-simreco-job
@@ -399,8 +399,6 @@ plots:
 
         cd key4hep-reco-validation/web/python
         python3 make_web.py --dest ../../www
-
-
 
 
 
