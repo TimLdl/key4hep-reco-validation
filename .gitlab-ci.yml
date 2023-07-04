@@ -12,7 +12,7 @@ variables:
         value: "25"
         description: How many events to run on
     WORKAREA:
-        value: "/cvmfs/validation"
+        value: "/validation"
         description: Where to run the validation on the runner
     EVENTS_PER_FILE:
         value: "25"
