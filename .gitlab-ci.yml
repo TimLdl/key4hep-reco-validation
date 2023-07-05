@@ -294,7 +294,10 @@ simulation:
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
         job_commands=()
-        ary=$(ls $INPUT_DATA_SAMPLE -1 | head -n $(($NUMBER_OF_EVENTS / $EVENTS_PER_FILE)) )
+        ary=$(curl https://key4hep-validation-data.web.cern.ch | head -n $(($NUMBER_OF_EVENTS / $EVENTS_PER_FILE)) )
+        for f in $ary; do
+            curl -O -L https://key4hep-validation-data.web.cern.ch/$f
+        done
         ary=($ary)
         for ((i=0; i<${#ary[*]}; i++)); do
             echo $i
