@@ -297,9 +297,9 @@ simulation:
         ary=$(curl https://key4hep-validation-data.web.cern.ch | tac | head -n $(($NUMBER_OF_EVENTS / $EVENTS_PER_FILE)) )
         ary=($ary)
         for ((i=0; i<${#ary[@]}; i++)); do
-            # curl -O -L "https://key4hep-validation-data.web.cern.ch/${ary[i]}"
             echo $i
             echo ${ary[i]}
+            curl -O https://key4hep-validation-data.web.cern.ch/${ary[i]}
             job_commands+=("ddsim --compactFile ${GEOMETRY}/${GEOMETRY}.xml --outputFile sim$i.slcio --steeringFile steering_file_sim.py --inputFiles ${ary[i]} --numberOfEvents $EVENTS_PER_FILE")
         done
         run_job() {
