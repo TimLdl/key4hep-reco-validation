@@ -299,7 +299,7 @@ simulation:
         for ((i=0; i<${#ary[@]}; i++)); do
             echo $i
             echo ${ary[i]}
-            curl -O https://key4hep-validation-data.web.cern.ch/${ary[i]}
+            curl -O https://key4hep-validation-data.web.cern.ch/"${ary[i]}"
             job_commands+=("ddsim --compactFile ${GEOMETRY}/${GEOMETRY}.xml --outputFile sim$i.slcio --steeringFile steering_file_sim.py --inputFiles ${ary[i]} --numberOfEvents $EVENTS_PER_FILE")
         done
         run_job() {
