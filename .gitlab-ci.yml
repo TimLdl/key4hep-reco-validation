@@ -12,8 +12,8 @@ variables:
         value: "latest"
         description: Which tag to use for the release
     INPUT_DATA_SAMPLE:
-        value: "/eos/experiment/clicdp/grid/ilc/prod/clic/100gev/Z_uds/gen/00011619/000"
-        description: Where to find the data used as an input for simulation
+        value: "https://key4hep-validation-data.web.cern.ch"
+        description: Which web page where to find the data used as an input for simulation
     NUMBER_OF_EVENTS:
         value: "25"
         description: How many events to run on
@@ -291,13 +291,13 @@ simulation:
         job_commands=()
         # I couldn't make it work in a single pipe since it seems curl closes it before it's completed
         # and complains about not being able to write in the destination
-        curl https://key4hep-validation-data.web.cern.ch > files.txt
+        curl $INPUT_DATA_SAMPLE > files.txt
         ary=$(cat files.txt | head -n $(($NUMBER_OF_EVENTS / $EVENTS_PER_FILE)) )
         ary=($ary)
         for ((i=0; i<${#ary[@]}; i++)); do
             echo $i
             echo ${ary[i]}
-            curl -O https://key4hep-validation-data.web.cern.ch/"${ary[i]}"
+            curl -O $INPUT_DATA_SAMPLE/${ary[i]}
             job_commands+=("ddsim --compactFile ${GEOMETRY}/${GEOMETRY}.xml --outputFile sim$i.slcio --steeringFile steering_file_sim.py --inputFiles ${ary[i]} --numberOfEvents $EVENTS_PER_FILE")
         done
         run_job() {
@@ -336,6 +336,7 @@ make-plot-files:
         # Jets
         sed -ie 's/TightSelectedPandoraPFOs/PandoraPFOs/' CLICPerformance/Calorimetry/testCalibJetStudies.xml
         sed -ie "s|/eos.*|$PWD/Output_DST.slcio|" CLICPerformance/Calorimetry/testCalibJetStudies.xml
+        sed -ie "s|JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root|jet_study.root|" CLICPerformance/Calorimetry/testCalibJetStudies.xml
         Marlin CLICPerformance/Calorimetry/testCalibJetStudies.xml
 
         # Track validation
@@ -356,15 +357,6 @@ make-plot-files:
         python3 script_analysis.py ../cfg/run_script_analysis.json
         mv track_validation_hist.root ../../
         cd -
-        if [ $MAKE_REFERENCE_SAMPLE == "yes" ]; then
-            mkdir -p /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY
-            cp histograms.root /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY/histograms.root
-            cp Output_REC.slcio /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY/Output_REC.slcio
-            cp Output_DST.slcio /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY/Output_DST.slcio
-            cp sim.slcio /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY/sim.slcio
-            cp track_validation_hist.root /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY/track_validation_hist.root
-
-        fi
 
 metadata:
     <<: *template-simreco-job
@@ -381,9 +373,6 @@ metadata:
         echo "key4hep-spack: $(cat $rel/.key4hep-spack-commit)" > metadata.yaml
         echo "spack: $(cat $rel/.spack-commit)" >> metadata.yaml
         echo "nightly: $rel" >> metadata.yaml
-        if [ $MAKE_REFERENCE_SAMPLE == "yes" ]; then
-            cp metadata.yaml /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY/metadata.yaml
-        fi
 
 plots:
     <<: *template-simreco-job
@@ -401,15 +390,6 @@ plots:
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
         python key4hep-reco-validation/scripts/plot_runner.py jets hists --reference ${REFERENCE_SAMPLE} --output key4hep-reco-validation/www/${GEOMETRY}
-
-        # python key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /eos/home-j/jcarcell/Testing_20/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root
-        # python3 key4hep-reco-validation/scripts/make_jet_plots.py JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew.root /cvmfs/validation_reference_samples/CLIC_o3_v15/JetStudy_WW1000_11814_CLIC_o3_v14_CT_PandoraPFOs_testnew_good.root
-        # mkdir -p key4hep-reco-validation/www/${GEOMETRY}/jets/plots
-        # mv *.png key4hep-reco-validation/www/${GEOMETRY}/jets/plots
-
-        # python3 key4hep-reco-validation/scripts/make_tracking_plots.py track_validation_hist.root track_validation_hist.root
-        # mkdir -p key4hep-reco-validation/www/${GEOMETRY}/track_validation/plots
-        # mv *.png key4hep-reco-validation/www/${GEOMETRY}/track_validation/plots
 
         cd key4hep-reco-validation/web/python
         python3 make_web.py --dest ../../www
