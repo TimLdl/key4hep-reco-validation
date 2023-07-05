@@ -8,6 +8,9 @@ variables:
     REFERENCE_SAMPLE:
         value: "/cvmfs/validation_reference_samples/CLIC_o3_v15/"
         description: Where to find the reference sample
+    INPUT_DATA_SAMPLE:
+        value: "/eos/experiment/clicdp/grid/ilc/prod/clic/100gev/Z_uds/gen/00011619/000"
+        description: Where to find the data used as an input for simulation
     NUMBER_OF_EVENTS:
         value: "25"
         description: How many events to run on
@@ -291,7 +294,7 @@ simulation:
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
         job_commands=()
-        ary=$(ls key4hep-reco-validation/data/Z* | head -n $(($NUMBER_OF_EVENTS / $EVENTS_PER_FILE)) )
+        ary=$(ls $INPUT_DATA_SAMPLE | head -n $(($NUMBER_OF_EVENTS / $EVENTS_PER_FILE)) )
         ary=($ary)
         for ((i=0; i<${#ary[*]}; i++)); do
             echo $i
