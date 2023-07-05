@@ -26,6 +26,9 @@ variables:
     STEERING_FILE_REC:
         value: "https://github.com/iLCSoft/CLICPerformance/blob/master/clicConfig/clicReconstruction.xml"
         description: Full path to the steering file for reconstruction (github or gitlab repo)
+    OS:
+        value: "almalinux9"
+        description: Which operating system to use for sourcing the nightlies
 
 # The validation workflow expect several things:
 # - a GEOMETRY folder that can be found in k4geo. This folder contains a GEOMETRY.xml file
@@ -83,13 +86,13 @@ prepare-simreco:
     script: |
         mkdir -p $WORKAREA
         cd $WORKAREA
-        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+
+        # Needed when running without git
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -wholename "*$OS*/.spack-commit" | sort -r | head -1)
         rel=$(dirname $rel)
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
-        export LD_LIBRARY_PATH=/cvmfs/sw-nightlies.hsf.org/key4hep/releases/2023-05-30/x86_64-almalinux9-gcc11.3.1-opt/gettext/0.21.1-a4dkr6/lib:$LD_LIBRARY_PATH
-        export LD_LIBRARY_PATH=/cvmfs/sw-nightlies.hsf.org/key4hep/releases/2023-05-30/x86_64-almalinux9-gcc11.3.1-opt/libiconv/1.17-54glgi/lib:$LD_LIBRARY_PATH
         # rm trackvalidation CLICPerformance key4hep-reco-validation -rf
         git clone https://github.com/jmcarcell/trackvalidation --depth 1
         git clone https://github.com/key4hep/key4hep-reco-validation --depth 1
@@ -140,7 +143,7 @@ prepare-datamodels:
     script: |
         mkdir -p $WORKAREA
         cd $WORKAREA
-        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -wholename "*$OS*/.spack-commit" | sort -r | head -1)
         rel=$(dirname $rel)
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
@@ -158,7 +161,7 @@ generate-edm-samples:
     script: |
         mkdir -p $WORKAREA
         cd $WORKAREA
-        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -wholename "*$OS*/.spack-commit" | sort -r | head -1)
         rel=$(dirname $rel)
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
@@ -256,7 +259,7 @@ datamodels:
     script: |
         mkdir -p $WORKAREA
         cd $WORKAREA
-        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -wholename "*$OS*/.spack-commit" | sort -r | head -1)
         rel=$(dirname $rel)
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
@@ -282,7 +285,7 @@ simulation:
     stage: simulate
     script: |
         cd $WORKAREA
-        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -wholename "*$OS*/.spack-commit" | sort -r | head -1)
         rel=$(dirname $rel)
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
@@ -307,7 +310,7 @@ reconstruction:
     stage: reconstruct
     script: |
         cd $WORKAREA
-        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -wholename "*$OS*/.spack-commit" | sort -r | head -1)
         rel=$(dirname $rel)
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
@@ -322,7 +325,7 @@ make-plot-files:
     when: always
     script: |
         cd $WORKAREA
-        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -wholename "*$OS*/.spack-commit" | sort -r | head -1)
         rel=$(dirname $rel)
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
@@ -360,7 +363,7 @@ metadata:
         - if: '$MAKE_REFERENCE_SAMPLE == "no"'
     script: |
         cd $WORKAREA
-        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -wholename "*$OS*/.spack-commit" | sort -r | head -1)
         rel=$(dirname $rel)
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
@@ -381,7 +384,7 @@ plots:
         mkdir -p ~/.config/matplotlib
         cp matplotlibrc ~/.config/matplotlib
         cd $WORKAREA
-        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -name ".spack-commit" | sort -r | head -1)
+        rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -wholename "*$OS*/.spack-commit" | sort -r | head -1)
         rel=$(dirname $rel)
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
