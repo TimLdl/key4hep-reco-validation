@@ -294,7 +294,7 @@ simulation:
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
         job_commands=()
-        ary=$(ls $INPUT_DATA_SAMPLE | head -n $(($NUMBER_OF_EVENTS / $EVENTS_PER_FILE)) )
+        ary=$(ls $INPUT_DATA_SAMPLE -1 | head -n $(($NUMBER_OF_EVENTS / $EVENTS_PER_FILE)) )
         ary=($ary)
         for ((i=0; i<${#ary[*]}; i++)); do
             echo $i
@@ -311,6 +311,7 @@ simulation:
 reconstruction:
     <<: *template-simreco-job
     stage: reconstruct
+    when: always
     script: |
         cd $WORKAREA
         rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -wholename "*$OS*/.spack-commit" | sort -r | head -1)
@@ -356,14 +357,20 @@ make-plot-files:
         python3 script_analysis.py ../cfg/run_script_analysis.json
         mv track_validation_hist.root ../../
         cd -
+        if [ $MAKE_REFERENCE_SAMPLE == "yes" ]; then
+            mkdir -p /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY
+            cp histograms.root /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY/histograms.root
+            cp Output_REC.slcio /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY/Output_REC.slcio
+            cp Output_DST.slcio /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY/Output_DST.slcio
+            cp sim.slcio /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY/sim.slcio
+            cp track_validation_hist.root /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY/track_validation_hist.root
 
+        fi
 
 metadata:
     <<: *template-simreco-job
     stage: metadata
     when: always
-    rules:       
-        - if: '$MAKE_REFERENCE_SAMPLE == "no"'
     script: |
         cd $WORKAREA
         rel=$(find /cvmfs/sw-nightlies.hsf.org/key4hep/releases/ -maxdepth 3 -wholename "*$OS*/.spack-commit" | sort -r | head -1)
@@ -375,7 +382,9 @@ metadata:
         echo "key4hep-spack: $(cat $rel/.key4hep-spack-commit)" > metadata.yaml
         echo "spack: $(cat $rel/.spack-commit)" >> metadata.yaml
         echo "nightly: $rel" >> metadata.yaml
-
+        if [ $MAKE_REFERENCE_SAMPLE == "yes" ]; then
+            cp metadata.yaml /eos/project/k/key4hep/validation/reference-samples/$GEOMETRY/metadata.yaml
+        fi
 
 plots:
     <<: *template-simreco-job
