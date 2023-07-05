@@ -294,6 +294,8 @@ simulation:
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
         job_commands=()
+        # I couldn't make it work in a single pipe since it seems curl closes it before it's completed
+        # and complains about not being able to write in the destination
         curl https://key4hep-validation-data.web.cern.ch > files.txt
         ary=$(cat files.txt | head -n $(($NUMBER_OF_EVENTS / $EVENTS_PER_FILE)) )
         ary=($ary)
@@ -435,6 +437,7 @@ plots:
 # The eos path and website are configured using https://webeos.cern.ch/
 deployment:
   <<: *template-simreco-job
+  image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer
   when: always
   stage: deploy
   script:
