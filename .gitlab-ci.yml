@@ -156,7 +156,7 @@ generate-edm-samples:
     when: always
     rules:
         - if: '$VALIDATION_JOB_TYPE == "datamodels" && '$MAKE_REFERENCE_SAMPLE == "yes"'
-        changes:
+          changes:
             - never
     script: |
         mkdir -p $WORKAREA
