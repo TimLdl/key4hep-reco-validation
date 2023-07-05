@@ -155,7 +155,9 @@ generate-edm-samples:
     stage: generate-edm-sample
     when: always
     rules:
-        - if: '$MAKE_REFERENCE_SAMPLE == "yes"'
+        - if: '$VALIDATION_JOB_TYPE == "datamodels" && '$MAKE_REFERENCE_SAMPLE == "yes"'
+        changes:
+            - never
     script: |
         mkdir -p $WORKAREA
         cd $WORKAREA
@@ -379,7 +381,9 @@ plots:
     stage: plot
     when: always
     rules:       
-        - if: '$MAKE_REFERENCE_SAMPLE == "no"'
+     - if: '$VALIDATION_JOB_TYPE == "simreco"' && '$MAKE_REFERENCE_SAMPLE == "no"'
+       changes:
+           - never
     script: |
         mkdir -p ~/.config/matplotlib
         cp matplotlibrc ~/.config/matplotlib
