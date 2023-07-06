@@ -6,13 +6,13 @@ variables:
         value: CLIC_o3_v15
         description: Which geometry to use
     REFERENCE_SAMPLE:
-        value: "/cvmfs/validation_reference_samples/CLIC_o3_v15/"
+        value: "https://key4hep-validation-data.web.cern.ch/Reference-samples/CLIC_o3_v15/2023-06-22"
         description: Where to find the reference sample
     TAG:
         value: "latest"
         description: Which tag to use for the release
     INPUT_DATA_SAMPLE:
-        value: "https://key4hep-validation-data.web.cern.ch"
+        value: "https://key4hep-validation-data.web.cern.ch/Gen/eos-experiment-clicdp-grid-ilc-prod-clic-100gev-Z_uds-gen-00011619-000"
         description: Which web page where to find the data used as an input for simulation
     NUMBER_OF_EVENTS:
         value: "25"
@@ -393,7 +393,13 @@ plots:
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
-        python key4hep-reco-validation/scripts/plot_runner.py jets hists --reference ${REFERENCE_SAMPLE} --output key4hep-reco-validation/www/${GEOMETRY}
+        mkdir Reference-samples
+        cd Reference-samples
+        for f in $(curl $REFERENCE_SAMPLE/index.html); do
+            curl -O $REFERENCE_SAMPLE/$f
+        done
+
+        python key4hep-reco-validation/scripts/plot_runner.py jets hists --reference Reference-samples --output key4hep-reco-validation/www/${GEOMETRY}
 
         cd key4hep-reco-validation/web/python
         python3 make_web.py --dest ../../www
