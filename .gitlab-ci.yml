@@ -393,7 +393,7 @@ plots:
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
 
-        mkdir Reference-samples
+        mkdir -p Reference-samples
         cd Reference-samples
         for f in $(curl $REFERENCE_SAMPLE/index.html); do
             curl -O $REFERENCE_SAMPLE/$f
