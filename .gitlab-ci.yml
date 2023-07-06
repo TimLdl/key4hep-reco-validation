@@ -1,6 +1,6 @@
 variables:
     VALIDATION_JOB_TYPE:
-        value: "datamodels"
+        value: "simreco"
         description: "Which type of validation job to run: simreco or datamodels"
     GEOMETRY:
         value: CLIC_o3_v15
@@ -398,6 +398,7 @@ plots:
         for f in $(curl $REFERENCE_SAMPLE/index.html); do
             curl -O $REFERENCE_SAMPLE/$f
         done
+        cd ..
 
         python key4hep-reco-validation/scripts/plot_runner.py jets hists --reference Reference-samples --output key4hep-reco-validation/www/${GEOMETRY}
 
