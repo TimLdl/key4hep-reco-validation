@@ -293,7 +293,7 @@ simulation:
         job_commands=()
         # I couldn't make it work in a single pipe since it seems curl closes it before it's completed
         # and complains about not being able to write in the destination
-        curl $INPUT_DATA_SAMPLE > files.txt
+        curl $INPUT_DATA_SAMPLE/index.html > files.txt
         ary=$(cat files.txt | head -n $(($NUMBER_OF_EVENTS / $EVENTS_PER_FILE)) )
         ary=($ary)
         for ((i=0; i<${#ary[@]}; i++)); do
