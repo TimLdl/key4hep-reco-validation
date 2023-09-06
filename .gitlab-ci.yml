@@ -96,7 +96,7 @@ prepare-simreco:
         git clone https://github.com/key4hep/key4hep-reco-validation --depth 1
 
         # Copy the geometry locally, avoid possible issues with equal signs in the path
-        path=$(find ${LCGEO} -name ${GEOMETRY} -type d)
+        path=$(find ${K4GEO} -name ${GEOMETRY} -type d)
         cp $path . -r
 
         if echo "$STEERING_FILE_SIM" | grep -q "github"; then
