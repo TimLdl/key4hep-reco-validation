@@ -409,7 +409,7 @@ plots:
 
 cleanup:
     <<: *template-simreco-job
-    stage: plot
+    stage: cleanup
     when: always
     rules:
      - if: '$VALIDATION_JOB_TYPE == "simreco" && $MAKE_REFERENCE_SAMPLE == "no"'
