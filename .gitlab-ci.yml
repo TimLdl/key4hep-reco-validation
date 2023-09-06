@@ -36,7 +36,7 @@ variables:
         value: "almalinux9"
         description: Which operating system to use for sourcing the nightlies
 
-# The validation workflow expect several things:
+# The validation workflow expects several things:
 # - a GEOMETRY folder that can be found in k4geo. This folder contains a GEOMETRY.xml file
 #   (for example CLIC_o3_v15 contains CLIC_o3_v15.xml)
 # - a steering file for simulation. The full path to the file in github or gitlab is expected
@@ -53,6 +53,7 @@ stages:
     - metadata
     - plot
     - deploy
+    - cleanup
 
 .template-job: &template-job
     image: gitlab-registry.cern.ch/key4hep/k4-deploy/alma9-build
@@ -380,7 +381,7 @@ plots:
     <<: *template-simreco-job
     stage: plot
     when: always
-    rules:       
+    rules:
      - if: '$VALIDATION_JOB_TYPE == "simreco" && $MAKE_REFERENCE_SAMPLE == "no"'
        changes:
            - never
@@ -404,6 +405,18 @@ plots:
 
         cd key4hep-reco-validation/web/python
         python3 make_web.py --dest ../../www
+
+
+cleanup:
+    <<: *template-simreco-job
+    stage: plot
+    when: always
+    rules:
+     - if: '$VALIDATION_JOB_TYPE == "simreco" && $MAKE_REFERENCE_SAMPLE == "no"'
+       changes:
+           - never
+    script: |
+        rm $WORKAREA/* -rf
 
 
 
