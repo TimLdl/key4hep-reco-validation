@@ -35,6 +35,10 @@ variables:
     OS:
         value: "almalinux9"
         description: Which operating system to use for sourcing the nightlies
+    # Needed by the deploy step
+    CI_OUTPUT_DIR:
+        value: "/validation/key4hep-reco-validation/www/"
+        description: Path to the web page files
 
 # The validation workflow expects several things:
 # - a GEOMETRY folder that can be found in k4geo. This folder contains a GEOMETRY.xml file
