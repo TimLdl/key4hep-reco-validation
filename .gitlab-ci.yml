@@ -1,31 +1,59 @@
 variables:
     VALIDATION_JOB_TYPE:
-        value: "simreco"
-        description: "Which type of validation job to run: simreco or datamodels"
-    GEOMETRY:
-        value: CLIC_o3_v15
-        description: Which geometry to use
-    REFERENCE_SAMPLE:
-        value: "https://key4hep-validation-data.web.cern.ch/Reference-samples/CLIC_o3_v15/2023-06-22"
-        description: Where to find the reference sample
-    TAG:
-        value: "latest"
-        description: Which tag to use for the release
-    INPUT_DATA_SAMPLE:
-        value: "https://key4hep-validation-data.web.cern.ch/Gen/eos-experiment-clicdp-grid-ilc-prod-clic-100gev-Z_uds-gen-00011619-000"
-        description: Which web page where to find the data used as an input for simulation
-    NUMBER_OF_EVENTS:
-        value: "25"
-        description: How many events to run on
-    WORKAREA:
-        value: "/validation"
-        description: Where to run the validation on the runner
-    EVENTS_PER_FILE:
-        value: "25"
-        description: How many events each input files has
+        value: "run_script"
+        description: "Which type of validation job to run: simreco, datamodels or run_script"
+    VERSIONS:
+        value: ALLEGRO_o1_v03,CLD_o3_v01,IDEA_o1_v03
+        description: Which geometries to use (must be separated by comma)
     MAKE_REFERENCE_SAMPLE:
         value: "no"
         description: Whether to only make a reference sample for later use
+    WORKAREA:
+        value: "/validation"
+        # value: "/home/jsmiesko/k4-val/validation"
+        description: Where to run the validation on the runner
+    PLOTAREA:
+        value: "plot_www"
+        description: Where to store the plots and information for the validation website
+    REFERENCE_SAMPLE:
+        value: "references"
+        description: Where to find the reference sample
+    NUMBER_OF_EVENTS:
+        value: "25"
+        description: How many events to run on
+    TAG:
+        value: ""
+        description: Which tag to use for the release
+    COMPARISON_TEST:
+        value: "identical"
+        description: Which statistical test to implement to compare histograms
+    SIGNIFICANCE_LEVEL:
+        value: "0.95"
+        description: Significance level of the comparison test (between 0 and 1)
+    EMAIL_ADDRESSES:
+        value: "key4hep-reco-validation-notifications@cern.ch"
+        description: Email addresses to send status emails to (separated by comma)
+    KEY4HEP_RECO_VALIDATION_REPO:
+        value: "https://github.com/key4hep/key4hep-reco-validation.git"
+        description: Web URL of the key4hep-reco-validation repository to clone
+    KEY4HEP_RECO_VALIDATION_BRANCH:
+        value: "main"
+        description: Branch of the key4hep-reco-validation repository to clone
+    # Needed by the deploy step
+    CI_OUTPUT_DIR:
+        value: "$WORKAREA/$PLOTAREA"
+        description: Path to the web page files
+
+    # Variables for old pipeline
+    GEOMETRY:
+        value: CLIC_o3_v15
+        description: Which geometry to use
+    INPUT_DATA_SAMPLE:
+        value: "https://key4hep-validation-data.web.cern.ch/Gen/eos-experiment-clicdp-grid-ilc-prod-clic-100gev-Z_uds-gen-00011619-000"
+        description: Which web page where to find the data used as an input for simulation
+    EVENTS_PER_FILE:
+        value: "25"
+        description: How many events each input files has
     STEERING_FILE_SIM:
         value: "https://github.com/iLCSoft/CLICPerformance/blob/master/clicConfig/clic_steer.py"
         description: Full path to the steering file for simulation (github or gitlab repo)
@@ -35,20 +63,15 @@ variables:
     OS:
         value: "almalinux9"
         description: Which operating system to use for sourcing the nightlies
-    # Needed by the deploy step
-    CI_OUTPUT_DIR:
-        value: "/validation/key4hep-reco-validation/www/"
-        description: Path to the web page files
 
-# The validation workflow expects several things:
-# - a GEOMETRY folder that can be found in k4geo. This folder contains a GEOMETRY.xml file
-#   (for example CLIC_o3_v15 contains CLIC_o3_v15.xml)
-# - a steering file for simulation. The full path to the file in github or gitlab is expected
-#   (for example https://github.com/iLCSoft/CLICPerformance/blob/master/clicConfig/clic_steer.py)
-# - a steering file for reconstruction. The full path to the file in github or gitlab is expected
-#   (for example )
+
+
 stages:
     - setup
+    - execute_scripts
+    - make_plots
+    - make_web
+
     - generate-edm-sample
     - datamodels
     - simulate
@@ -56,13 +79,315 @@ stages:
     - make-plot-files
     - metadata
     - plot
+
     - deploy
     - cleanup
+
 
 .template-job: &template-job
     image: gitlab-registry.cern.ch/key4hep/k4-deploy/alma9-build
     tags:
         - validation
+
+.template-run_script-job: &template-run_script-job
+    <<: *template-job
+    rules:
+      - if: '$VALIDATION_JOB_TYPE == "run_script"'
+        changes:
+            - never
+
+
+prepare-run_script:
+    <<: *template-run_script-job
+    stage: setup
+    when: always
+    script: |
+
+        # set variables to make pipeline fail
+        PIPELINE_FAIL=0
+
+        # prepare working directories and clone key4hep-reco-validation repo
+        mkdir -p $WORKAREA/$PLOTAREA
+        cd $WORKAREA
+        git clone $KEY4HEP_RECO_VALIDATION_REPO -b $KEY4HEP_RECO_VALIDATION_BRANCH
+        cp -r key4hep-reco-validation/www/static $WORKAREA/$PLOTAREA
+
+        # loop over versions
+        CLEAN_VERSIONS=$(echo "$VERSIONS" | sed 's/[][]//g' | tr -d '"' | tr -d ' ' )
+        IFS=$',' read -r -a VERSION_ARRAY <<<"$CLEAN_VERSIONS"
+
+        for VERSION in "${VERSION_ARRAY[@]}"; do
+            GEOMETRY="${VERSION%%_*}"
+
+            # check if script exists
+            script="$WORKAREA"/key4hep-reco-validation/scripts/FCCee/"$GEOMETRY"/"$VERSION"/"$VERSION"_script.sh
+            if [ -f "$script" ]; then
+                # cleanup working directory
+                if [ -d "$WORKAREA/$GEOMETRY/$VERSION" ]; then
+                    echo "Working directory $WORKAREA/$GEOMETRY/$VERSION already exists. Deleting it..."
+                    rm -rf "$WORKAREA/$GEOMETRY/$VERSION"
+                    echo "Old directory deleted."
+                fi
+
+                mkdir -p $WORKAREA/$GEOMETRY/$VERSION
+
+            else
+                VERSION_ARRAY=("${VERSION_ARRAY[@]/$VERSION}")
+                echo "No script found for version: $VERSION"
+                PIPELINE_FAIL=1
+            fi
+        done
+
+        # Save the array of versions that passed the check to file
+        declare -p VERSION_ARRAY > $WORKAREA/version_array.txt
+
+        # make the pipeline fail if some of the previous steps went bad
+        if [[ "$PIPELINE_FAIL" -eq 1 ]]; then
+            exit 1;
+        fi
+
+
+execute_scripts:
+    <<: *template-run_script-job
+    stage: execute_scripts
+    when: always
+    script: |
+
+        # set variables to make pipeline fail
+        PIPELINE_FAIL=0
+
+        # source nightly
+        if [ -n "$TAG" ]; then
+            source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh -r $TAG
+        else
+            source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
+        fi
+
+        # loop over versions and execute corresponding scripts
+        source $WORKAREA/version_array.txt
+        for VERSION in "${VERSION_ARRAY[@]}"; do
+           GEOMETRY="${VERSION%%_*}"
+           echo "Working on Geo: $GEOMETRY - version: $VERSION"
+           RESULTS_PATH="${WORKAREA}/${GEOMETRY}/${VERSION}/results.root"
+
+           cd $WORKAREA/$GEOMETRY/$VERSION
+           script="${WORKAREA}/key4hep-reco-validation/scripts/FCCee/${GEOMETRY}/${VERSION}/${VERSION}_script.sh"
+
+           # check if script exists
+           echo "Running $script..."
+
+           set +e # prevent exit on error
+           (source "$script")  # running in sub-shell thanks to ()
+           exit_code=$?
+           echo "Script exit code: ${exit_code}"
+           set -e # enable exit on error
+
+           # if script fails or correct output is not produced,
+           # remove version from version list to prevent its testing in next stages
+           if [[ "$exit_code" -ne 0 || ! -f "${RESULTS_PATH}" ]]; then
+               VERSION_ARRAY=("${VERSION_ARRAY[@]/$VERSION}")
+               # send warning email using python
+               echo "Sending warning email for ${VERSION}"
+               python $WORKAREA/key4hep-reco-validation/scripts/FCCee/utils/send_mail.py \
+                   --to "$EMAIL_ADDRESSES" \
+                   --subject "WARNING for $VERSION: error during script execution!" \
+                   --body "An error occurred when executing the script for $VERSION: either the script crashed or the output file was not produced."
+               PIPELINE_FAIL=1
+
+           # if everything went well, check if reference is needed
+           else
+               if [ "$MAKE_REFERENCE_SAMPLE" == "yes" ]; then
+                   mkdir -p $WORKAREA/$REFERENCE_SAMPLE/$GEOMETRY/$VERSION
+                   mv ${RESULTS_PATH} $WORKAREA/$REFERENCE_SAMPLE/$GEOMETRY/$VERSION/ref_$VERSION.root
+               fi
+           fi
+        done
+
+        # Save the array of versions that generated 
+        declare -p VERSION_ARRAY > $WORKAREA/version_array.txt
+
+        # make the pipeline fail if some of the previous steps went bad
+        if [[ "$PIPELINE_FAIL" -eq 1 ]]; then
+            echo "Pipeline fail"
+            exit 1;
+        fi
+
+
+make_plots:
+    <<: *template-run_script-job
+    stage: make_plots
+    when: always
+    rules:
+      - if: '$VALIDATION_JOB_TYPE == "run_script" && $MAKE_REFERENCE_SAMPLE == "no"'
+        changes:
+            - never
+    script: |
+
+        # set variables to check if at least one comparison fails
+        COMPARISON_FAIL=0
+
+        # source nightly
+        if [ -n "$TAG" ]; then
+            source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh -r "$TAG"
+        else
+            source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
+        fi
+
+        # loop over versions and execute corresponding scripts
+        source $WORKAREA/version_array.txt
+        for VERSION in "${VERSION_ARRAY[@]}"; do
+            if [[ -n $VERSION ]]; then
+                GEOMETRY="${VERSION%%_*}"
+                cd $WORKAREA/$GEOMETRY/$VERSION
+                echo "Working on Geo: $GEOMETRY - version: $VERSION"
+
+                # clean up plot area
+                if [ -d "$WORKAREA/$PLOTAREA/$GEOMETRY/$VERSION" ]; then
+                    echo "Plotting directory $WORKAREA/$PLOTAREA/$GEOMETRY/$VERSION already exists. Deleting it..."
+                    rm -rf "$WORKAREA/$PLOTAREA/$GEOMETRY/$VERSION"
+                    echo "Old directory deleted."
+                fi
+
+                mkdir -p $WORKAREA/$PLOTAREA/$GEOMETRY/$VERSION
+
+                printf "\n\nPLOT PHASE:\n"
+
+                echo "Starting plotting script..."
+                python $WORKAREA/key4hep-reco-validation/scripts/FCCee/utils/plot_histograms.py \
+                   -f results.root -r $WORKAREA/$REFERENCE_SAMPLE/$GEOMETRY/$VERSION/ref_$VERSION.root \
+                   -o $WORKAREA/$PLOTAREA/$GEOMETRY/$VERSION --test "$COMPARISON_TEST" --SL "$SIGNIFICANCE_LEVEL" \
+                   -m mismatches.txt
+                echo "Script executed successfully"
+
+                # check if mismatches.txt exists:
+                # this means some histograms have failed the check
+                if [ -f "mismatches.txt" ]; then
+
+                    # create email body file, containing info on the failed detetctor
+                    echo "Error found for geometry: $GEOMETRY - version: $VERSION" > email_body.txt
+                    cat mismatches.txt >> email_body.txt
+
+                    # send email using python
+                    python $WORKAREA/key4hep-reco-validation/scripts/FCCee/utils/send_mail.py \
+                        --to "$EMAIL_ADDRESSES" \
+                        --subject "WARNING for $VERSION: mismatch found!" \
+                        --input-file email_body.txt
+
+                    # notify one mismatch is found
+                    COMPARISON_FAIL=1
+                fi
+            fi
+        done
+
+        # send all okay email if no mismatch was found
+        if [[ "$COMPARISON_FAIL" -eq 0 ]]; then
+            python $WORKAREA/key4hep-reco-validation/scripts/FCCee/utils/send_mail.py \
+                --to "$EMAIL_ADDRESSES" \
+                --subject "All OK" \
+                --body "All detectors match with the references."
+        fi
+
+
+make_web:
+    <<: *template-run_script-job
+    stage: make_web
+    when: on_success
+    needs:
+        - make_plots
+    rules:
+      - if: '$VALIDATION_JOB_TYPE == "run_script" && $MAKE_REFERENCE_SAMPLE == "no"'
+        changes:
+            - never
+    script: |
+        # source nightly
+        if [ -n "$TAG" ]; then
+            source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh -r $TAG
+        else
+            source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
+        fi
+
+        source $WORKAREA/version_array.txt
+
+        cd $WORKAREA
+        rel=$(realpath $(dirname $KEY4HEP_STACK)/../../)
+        echo rel is $rel
+
+        echo "key4hep-spack: $(cat $rel/.key4hep-spack-commit)" > metadata.yaml
+        echo "spack: $(cat $rel/.spack-commit)" >> metadata.yaml
+        echo "nightly: $rel" >> metadata.yaml
+
+        for VERSION in "${VERSION_ARRAY[@]}"; do
+            if [[ -n $VERSION ]]; then
+                GEOMETRY="${VERSION%%_*}"
+
+                cp metadata.yaml $WORKAREA/$PLOTAREA/$GEOMETRY/$VERSION
+            fi
+        done
+
+        echo "Starting website script..."
+        cd $WORKAREA/key4hep-reco-validation/web/python
+        python3 make_web.py --dest $WORKAREA/$PLOTAREA
+        echo "Script executed successfully"
+
+
+# -- Deploy to EOS ----------------------------
+# Use the standard workflow to publish to eos
+# see https://gitlab.cern.ch/ci-tools/ci-web-deployer
+# The variables for this particular deployment:
+# CI_OUTPUT_DIR: build/doxygen/html/
+# EOS_ACCOUNT_PASSWORD: xxx
+# EOS_ACCOUNT_USERNAME: xxx
+# EOS_PATH: /eos/project-k/key4hep/www/edm4hep/
+# METHOD: rsync
+# The service account key4hep is used to write
+# to the eos space /eos/project/k/key4hep/www/edm4hep
+# Other accounts which are part of the e-groups
+# cernbox-project-key4hep-{readers|writers} may be used.
+# The eos path and website are configured using https://webeos.cern.ch/
+deployment:
+    <<: *template-run_script-job
+    image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer
+    when: on_success
+    needs:
+        - make_web
+    rules:
+      - if: '$VALIDATION_JOB_TYPE == "run_script" && $MAKE_REFERENCE_SAMPLE == "no"'
+        changes:
+            - never
+    stage: deploy
+    script:
+      - deploy-eos
+    before_script: []
+    after_script: []
+
+
+cleanup:
+    <<: *template-run_script-job
+    stage: cleanup
+    when: always
+    script: |
+        # final cleanup
+        cd $WORKAREA
+        if [ -d key4hep-reco-validation ]; then
+            rm -rf key4hep-reco-validation
+        fi
+
+        if [ -f metadata.yaml ]; then
+            rm metadata.yaml
+        fi
+
+        if [ -f version_array.txt ]; then
+            rm version_array.txt
+        fi
+
+
+
+###############################################################################
+##                                                                           ##
+##                               OLD PIPELINE                                ##
+##                                                                           ##
+###############################################################################
+
 
 .template-simreco-job: &template-simreco-job
     <<: *template-job
@@ -82,7 +407,7 @@ stages:
     image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer:latest
     tags:
         - validation
-    
+
 prepare-simreco:
     <<: *template-simreco-job
     stage: setup
@@ -138,7 +463,7 @@ prepare-simreco:
             echo "Unknown repository type"
         fi
 
-        ln -s $file_path steering_file_rec.xml 
+        ln -s $file_path steering_file_rec.xml
 
 prepare-datamodels:
     <<: *template-datamodels-job
@@ -253,8 +578,6 @@ generate-edm-samples:
                 (( i += 1 ))
                 continue
             fi
-
-
         done
 
 datamodels:
@@ -324,7 +647,7 @@ reconstruction:
         rel=$(dirname $rel)
         echo rel is $rel
         source $(ls -t1 $rel/key4hep-stack/*/setup.sh | head -1)
-        
+
         cd $(dirname $(readlink steering_file_rec.xml))
         Marlin $(basename ${STEERING_FILE_REC}) --InitDD4hep.DD4hepXMLFile=${WORKAREA}/${GEOMETRY}/${GEOMETRY}.xml --global.LCIOInputFiles=${WORKAREA}/sim.slcio
         mv Output_DST.slcio Output_REC.slcio histograms.root ${WORKAREA}
@@ -411,7 +734,7 @@ plots:
         python3 make_web.py --dest ../../www
 
 
-cleanup:
+cleanup_simreco:
     <<: *template-simreco-job
     stage: cleanup
     when: always
@@ -438,7 +761,7 @@ cleanup:
 # Other accounts which are part of the e-groups
 # cernbox-project-key4hep-{readers|writers} may be used.
 # The eos path and website are configured using https://webeos.cern.ch/
-deployment:
+deployment_simreco:
   <<: *template-simreco-job
   image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer
   when: always
