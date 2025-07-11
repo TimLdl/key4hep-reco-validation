@@ -146,7 +146,6 @@ prepare-run_script:
             exit 1;
         fi
 
-
 execute_scripts:
     <<: *template-run_script-job
     stage: execute_scripts
@@ -212,6 +211,72 @@ execute_scripts:
             exit 1;
         fi
 
+run_exact_comparison:
+    <<: *template-run_script-job
+    stage: execute_scripts
+    when: always
+    script: |
+
+        # set variables to make pipeline fail
+        PIPELINE_FAIL=0
+
+        # source nightly
+        if [ -n "$TAG" ]; then
+            source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh -r $TAG
+        else
+            source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
+        fi
+
+        # loop over versions and execute corresponding scripts
+        source $WORKAREA/version_array.txt
+        for VERSION in "${VERSION_ARRAY[@]}"; do
+           GEOMETRY="${VERSION%%_*}"
+           echo "Working on Geo: $GEOMETRY - version: $VERSION"
+           REFERENCE_PATH="/validation/${VERSION}.root"
+
+            ddsim --compactFile $K4GEO/FCCee/${GEOMETRY}/compact/${VERSION}/${VERSION}.xml -G \
+                --numberOfEvents 3 \
+                --outputFile update_${VERSION}.root \
+                --gun.energy '10*GeV' --gun.particle 'mu-' --gun.distribution uniform --gun.multiplicity 10 \
+                --random.enableEventSeed --random.seed 5
+            python $WORKAREA/key4hep-reco-validation/scripts/compare_sim_outputs.py \
+                --new-file update_${VERSION}.root \
+                --reference-file $REFERENCE_PATH -d || exit_code=$?
+            echo "Script exit code: ${exit_code}"
+            if [[ "$exit_code" -eq 2 ]]; then  # Only register fail if exit code is 2, aka ComparisonError
+                # send warning email using python
+                echo "Sending warning email for ${VERSION}"
+                python $WORKAREA/key4hep-reco-validation/scripts/FCCee/utils/send_mail.py \
+                    --to "$EMAIL_ADDRESSES" \
+                    --subject "WARNING for ${VERSION}: error during script execution!" \
+                    --body "An error occurred when executing the script for $VERSION: The ddsim outputs do not match the reference."
+                PIPELINE_FAIL=1
+            elif [[ "$exit_code" -ne 0 ]]; then
+                # send warning email using python
+                echo "Sending warning email for ${VERSION}"
+                python $WORKAREA/key4hep-reco-validation/scripts/FCCee/utils/send_mail.py \
+                    --to "$EMAIL_ADDRESSES" \
+                    --subject "WARNING for ${VERSION}: error during script execution!" \
+                    --body "An error occurred when executing the script for $VERSION: compare_sim_outputs.py script failed with exit code ${exit_code}."
+                PIPELINE_FAIL=1
+            else
+                echo "No changes in ddsim output found for ${VERSION}"
+                if [ "$MAKE_REFERENCE_SAMPLE" == "yes" ]; then
+                    mv update_${VERSION}.root $REFERENCE_PATH
+                fi
+            fi
+        done
+
+        # make the pipeline fail if some of the previous steps went bad
+        if [[ "$PIPELINE_FAIL" -eq 1 ]]; then
+            echo "Pipeline fail"
+            exit 1
+        fi
+    artifacts:
+        when: on_failure
+        paths:
+        - ddsim_comparison_*.txt
+        expire_in: 1 week
 
 make_plots:
     <<: *template-run_script-job
