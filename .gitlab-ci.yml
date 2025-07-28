@@ -10,7 +10,6 @@ variables:
         description: Whether to only make a reference sample for later use
     WORKAREA:
         value: "/validation"
-        # value: "/home/jsmiesko/k4-val/validation"
         description: Where to run the validation on the runner
     PLOTAREA:
         value: "plot_www"
