@@ -38,6 +38,9 @@ variables:
     KEY4HEP_RECO_VALIDATION_BRANCH:
         value: "main"
         description: Branch of the key4hep-reco-validation repository to clone
+    STEERING_FILE_REPO:
+        value: "https://github.com/HEP-FCC/FCC-config.git"
+        description: Web URL of the steering file repository to clone
     # Needed by the deploy step
     CI_OUTPUT_DIR:
         value: "$WORKAREA/$PLOTAREA"
@@ -119,7 +122,7 @@ prepare-run_script:
             GEOMETRY="${VERSION%%_*}"
 
             # check if script exists
-            script="$WORKAREA"/key4hep-reco-validation/scripts/FCCee/"$GEOMETRY"/"$VERSION"/"$VERSION"_script.sh
+            script="$WORKAREA"/key4hep-reco-validation/scripts/FCCee/"$GEOMETRY"/"$GEOMETRY"_script.sh
             if [ -f "$script" ]; then
                 # cleanup working directory
                 if [ -d "$WORKAREA/$GEOMETRY/$VERSION" ]; then
@@ -169,7 +172,7 @@ execute_scripts:
            RESULTS_PATH="${WORKAREA}/${GEOMETRY}/${VERSION}/results.root"
 
            cd $WORKAREA/$GEOMETRY/$VERSION
-           script="${WORKAREA}/key4hep-reco-validation/scripts/FCCee/${GEOMETRY}/${VERSION}/${VERSION}_script.sh"
+           script="${WORKAREA}/key4hep-reco-validation/scripts/FCCee/${GEOMETRY}/${GEOMETRY}_script.sh"
 
            # check if script exists
            echo "Running $script..."
@@ -226,21 +229,36 @@ run_exact_comparison:
             source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
         fi
 
+        git clone $STEERING_FILE_REPO
+
         # loop over versions and execute corresponding scripts
         source $WORKAREA/version_array.txt
         for VERSION in "${VERSION_ARRAY[@]}"; do
-           GEOMETRY="${VERSION%%_*}"
-           echo "Working on Geo: $GEOMETRY - version: $VERSION"
-           REFERENCE_PATH="/validation/${VERSION}.root"
+            GEOMETRY="${VERSION%%_*}"
+            echo "Working on Geo: $GEOMETRY - version: $VERSION"
+            REFERENCE_PATH="/validation/${VERSION}.root"
+            FILE_PATH="FCC-config/FCCee/FullSim/${GEOMETRY}/${VERSION}/SteeringFile_${VERSION}.py"
+            STEERING_ARG=""
+
+            # Check if steering file exists in current directory
+            if [[ -f "$FILE_PATH" ]]; then
+                echo "Using steering file: $FILE_PATH"
+                STEERING_ARG="--steeringFile $FILE_PATH"
+            else
+                echo "No steering file found for $VERSION. Proceeding without one."
+            fi
 
             ddsim --compactFile $K4GEO/FCCee/${GEOMETRY}/compact/${VERSION}/${VERSION}.xml -G \
                 --numberOfEvents 3 \
                 --outputFile update_${VERSION}.root \
                 --gun.energy '10*GeV' --gun.particle 'mu-' --gun.distribution uniform --gun.multiplicity 10 \
-                --random.enableEventSeed --random.seed 5
+                --random.enableEventSeed --random.seed 5 \
+                $STEERING_ARG
+            exit_code=0
             python $WORKAREA/key4hep-reco-validation/scripts/compare_sim_outputs.py \
                 --new-file update_${VERSION}.root \
-                --reference-file $REFERENCE_PATH -d || exit_code=$?
+                --reference-file $REFERENCE_PATH -d \
+                --output-file ddsim_comparison_${VERSION}.txt || exit_code=$?
             echo "Script exit code: ${exit_code}"
             if [[ "$exit_code" -eq 2 ]]; then  # Only register fail if exit code is 2, aka ComparisonError
                 # send warning email using python
@@ -260,9 +278,12 @@ run_exact_comparison:
                 PIPELINE_FAIL=1
             else
                 echo "No changes in ddsim output found for ${VERSION}"
-                if [ "$MAKE_REFERENCE_SAMPLE" == "yes" ]; then
-                    mv update_${VERSION}.root $REFERENCE_PATH
-                fi
+            fi
+            if [ "$MAKE_REFERENCE_SAMPLE" == "yes" ]; then
+                mv update_${VERSION}.root $REFERENCE_PATH
+            fi
+            if [[ "$exit_code" -eq 0 ]]; then  # Remove file if comparison was succesful to allow prevent being added to artifacts
+                rm -f ddsim_comparison_${VERSION}.txt update_${VERSION}.root
             fi
         done
 
@@ -275,6 +296,7 @@ run_exact_comparison:
         when: on_failure
         paths:
         - ddsim_comparison_*.txt
+        - update_*.root
         expire_in: 1 week
 
 make_plots:
