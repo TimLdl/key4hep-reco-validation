@@ -94,6 +94,7 @@ stages:
 .template-run_script-job: &template-run_script-job
     <<: *template-job
     rules:
+      - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       - if: '$VALIDATION_JOB_TYPE == "run_script"'
         changes:
             - never
@@ -111,6 +112,7 @@ prepare-run_script:
         # prepare working directories and clone key4hep-reco-validation repo
         mkdir -p $WORKAREA/$PLOTAREA
         cd $WORKAREA
+        rm -rf key4hep-reco-validation
         git clone $KEY4HEP_RECO_VALIDATION_REPO -b $KEY4HEP_RECO_VALIDATION_BRANCH
         cp -r key4hep-reco-validation/www/static $WORKAREA/$PLOTAREA
 
@@ -122,7 +124,7 @@ prepare-run_script:
             GEOMETRY="${VERSION%%_*}"
 
             # check if script exists
-            script="$WORKAREA"/key4hep-reco-validation/scripts/FCCee/"$GEOMETRY"/"$GEOMETRY"_script.sh
+            script="$WORKAREA"/key4hep-reco-validation/scripts/FCCee/"$GEOMETRY"/"$VERSION"/"$VERSION"_script.sh
             if [ -f "$script" ]; then
                 # cleanup working directory
                 if [ -d "$WORKAREA/$GEOMETRY/$VERSION" ]; then
@@ -172,7 +174,7 @@ execute_scripts:
            RESULTS_PATH="${WORKAREA}/${GEOMETRY}/${VERSION}/results.root"
 
            cd $WORKAREA/$GEOMETRY/$VERSION
-           script="${WORKAREA}/key4hep-reco-validation/scripts/FCCee/${GEOMETRY}/${GEOMETRY}_script.sh"
+           script="${WORKAREA}/key4hep-reco-validation/scripts/FCCee/${GEOMETRY}/${VERSION}/${VERSION}_script.sh"
 
            # check if script exists
            echo "Running $script..."
@@ -304,6 +306,7 @@ make_plots:
     stage: make_plots
     when: always
     rules:
+      - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       - if: '$VALIDATION_JOB_TYPE == "run_script" && $MAKE_REFERENCE_SAMPLE == "no"'
         changes:
             - never
@@ -381,6 +384,7 @@ make_web:
     needs:
         - make_plots
     rules:
+      - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       - if: '$VALIDATION_JOB_TYPE == "run_script" && $MAKE_REFERENCE_SAMPLE == "no"'
         changes:
             - never
@@ -437,6 +441,8 @@ deployment:
     needs:
         - make_web
     rules:
+      - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        when: never
       - if: '$VALIDATION_JOB_TYPE == "run_script" && $MAKE_REFERENCE_SAMPLE == "no"'
         changes:
             - never
