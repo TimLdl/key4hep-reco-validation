@@ -83,7 +83,7 @@ def make_hist_file(args):
             hist_ccE.Fill(calo.getEnergy())
 
         for calo in event.get("CaloTopoClusterCells"):
-            hist_ctcE.Fill(calo.energy())
+            hist_ctcE.Fill(calo.getEnergy())
 
         energy = 0
         for ecal in event.get("ECalBarrelModuleThetaMergedPositioned"):
