@@ -53,7 +53,7 @@ plots:
   - key: "dch_dn_dx"
     title: "Drift Chamber dN/dx Distribution"
     type: "asymmetric"
-    x_title: "DCH dN/dx [hits/cm]"
+    x_title: "DCH dN/dx [clusters/cm]"
     subdetector: "tracking"
     algorithm: "drift_chamber"
     module_type: "barrel"
