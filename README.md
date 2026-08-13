@@ -55,7 +55,6 @@ pip install jinja2 pyyaml
 To execute the full end-to-end pipeline (processing ROOT samples, generating histograms, rendering plots, and building the website):
 
 ```bash
-chmod +x local-run.sh
 ./local-run.sh
 ```
 
@@ -63,18 +62,30 @@ chmod +x local-run.sh
 
 * **Histogram Generation:**
   ```bash
-  python3 scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/hist.py
-  python3 scripts/detectors/IDEA/IDEA_o1_v03/hist.py
+  python3 "scripts/detectors/${DET_FAMILY}/${DET}/hist.py" \
+        --input "${INPUT_FILE}" \
+        --output "${OUTPUT_FILE}" \
+        --particle-prefix "${PARTICLE}" \
+        --config "${CONFIG_PATH}"
   ```
 
 * **Plot Generation:**
   ```bash
-  python3 -m scripts.k4_reco_val_utils.plotting --config config/plotting.yaml
+  python3 scripts/detectors/k4_reco_val_utils/plotting.py \
+        --inputs "${PLOT_INPUTS[@]}" \
+        --style-config config/plotting.yaml \
+        --detector-config "${CONFIG_PATH}" \
+        --output-dir "plots/${DET_FAMILY}/${DET}"
   ```
 
 * **Website Build:**
   ```bash
-  python3 scripts/web/build_website.py --config config/web.yaml
+  python3 scripts/web/build_website.py \
+        --web-config config/web.yaml \
+        --templates-dir web/templates \
+        --static-dir web/static \
+        --plots-dir plots \
+        --output-dir www
   ```
 
 ### 3. Serving the Dashboard Locally
