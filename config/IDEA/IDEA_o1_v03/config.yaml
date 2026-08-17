@@ -1,11 +1,18 @@
 detector: "IDEA"
 version: "IDEA_o1_v03"
 
-geometry:
-  bitfield: "system:5,superlayer:5,layer:4,nphi:11,stereosign:-2"
-  max_pseudorapidity: 0.88
-  total_drift_chamber_layers: 112
+# Global detector properties
+detector_parameters:
   magnetic_field_tesla: 2.0
+  max_pseudorapidity: 0.88
+
+# Subdetector-specific properties and readout configs
+subdetectors:
+  drift_chamber:
+    total_layers: 112
+    superlayer_bit_name: "superlayer"
+    layer_bit_name: "layer"
+    bitfield_string: "system:5,superlayer:5,layer:4,nphi:11,stereosign:-2"
 
 collections:
   mc_particles: "MCParticles"
@@ -33,6 +40,7 @@ plots:
     subdetector: "vertex"
     algorithm: "silicon_pixel"
     module_type: "barrel_endcap"
+    eta_gated: true
 
   - key: "siwr_digi_hits_per_event"
     title: "Silicon Wrapper Hits per Event"
@@ -41,6 +49,7 @@ plots:
     subdetector: "tracking"
     algorithm: "silicon_wrapper"
     module_type: "barrel_endcap"
+    eta_gated: true
 
   - key: "drift_chamber_hits_per_layer"
     title: "DCH Hits per Layer"
@@ -49,6 +58,7 @@ plots:
     subdetector: "tracking"
     algorithm: "drift_chamber"
     module_type: "barrel"
+    eta_gated: true
 
   - key: "dch_dn_dx"
     title: "Drift Chamber dN/dx Distribution"
@@ -57,6 +67,7 @@ plots:
     subdetector: "tracking"
     algorithm: "drift_chamber"
     module_type: "barrel"
+    eta_gated: false
 
   - key: "calorimeter_linearity_cherenkov"
     title: "Cherenkov Linearity [E_{reco}/E_{true}]"
@@ -65,6 +76,7 @@ plots:
     subdetector: "calorimetry"
     algorithm: "dual_readout"
     module_type: "cherenkov"
+    eta_gated: false
 
   - key: "calorimeter_linearity_scintillation"
     title: "Scintillation Linearity [E_{reco}/E_{true}]"
@@ -73,6 +85,7 @@ plots:
     subdetector: "calorimetry"
     algorithm: "dual_readout"
     module_type: "scintillation"
+    eta_gated: false
 
   - key: "calorimeter_c_over_s_ratio"
     title: "Dual-Readout Energy Ratio (E_{Cherenkov} / E_{Scintillation})"
@@ -81,6 +94,7 @@ plots:
     subdetector: "calorimetry"
     algorithm: "dual_readout"
     module_type: "combined"
+    eta_gated: false
 
   - key: "topocluster_count"
     title: "TopoCluster Multiplicity"
@@ -89,6 +103,7 @@ plots:
     subdetector: "calorimetry"
     algorithm: "topocluster"
     module_type: "global"
+    eta_gated: false
 
   - key: "topocluster_leading_energy"
     title: "Highest Cluster Energy Profile"
@@ -97,6 +112,7 @@ plots:
     subdetector: "calorimetry"
     algorithm: "topocluster"
     module_type: "global"
+    eta_gated: false
 
   - key: "muon_system_hits_per_event"
     title: "Muon System Hits per Event"
@@ -105,6 +121,7 @@ plots:
     subdetector: "muon_system"
     algorithm: "muon_chambers"
     module_type: "barrel_endcap"
+    eta_gated: true
 
   # Dynamic entries per tracking collection
   - key: "tracker_hits_per_track"
@@ -115,6 +132,7 @@ plots:
     subdetector: "tracking"
     algorithm: "track_reconstruction"
     module_type: "global"
+    eta_gated: true
 
   - key: "reconstructed_tracks_per_event"
     title: "Reconstructed Tracks per Event"
@@ -124,6 +142,7 @@ plots:
     subdetector: "tracking"
     algorithm: "track_reconstruction"
     module_type: "global"
+    eta_gated: false
 
   - key: "track_fit_chi2_over_ndf"
     title: "Track Fit Quality #chi^{2}/ndf"
@@ -133,6 +152,7 @@ plots:
     subdetector: "tracking"
     algorithm: "track_reconstruction"
     module_type: "global"
+    eta_gated: false
 
   - key: "momentum_resolution"
     title: "Momentum Resolution #Delta p/p_{true}"
@@ -142,3 +162,4 @@ plots:
     subdetector: "tracking"
     algorithm: "track_reconstruction"
     module_type: "global"
+    eta_gated: false

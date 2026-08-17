@@ -1,4 +1,4 @@
-# Key4hep Reconstruction Validation (k4-reconstruction-validation)
+# Key4hep Reconstruction Validation (key4hep-reco-validation)
 
 An automated validation framework for evaluating detector simulation and reconstruction performance within the key4hep ecosystem. The pipeline processes digitized ROOT event samples, generates standardized validation histograms and performance plots, and publishes a static HTML web report dashboard.
 
@@ -33,7 +33,7 @@ An automated validation framework for evaluating detector simulation and reconst
 
 ## Prerequisites
 
-Ensure a key4hep / FCC environment is sourced (or ROOT, Python 3, and required dependencies are available):
+Ensure a key4hep environment is sourced (or ROOT, Python 3, and required dependencies are available):
 
 ```bash
 # Example sourcing key4hep environment on CVMFS

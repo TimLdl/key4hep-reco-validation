@@ -67,6 +67,7 @@ def resolve_histogram_definitions(config, logger=None):
         title = plot["title"]
         plot_type = plot.get("type", "asymmetric")
         x_title = plot.get("x_title", "")
+        eta_gated = plot.get("eta_gated", False)
 
         if plot.get("per_collection"):
             for col in track_collections:
@@ -76,6 +77,7 @@ def resolve_histogram_definitions(config, logger=None):
                     "title": f"{title} ({col});{x_title};Entries",
                     "type": plot_type,
                     "x_title": x_title,
+                    "eta_gated": eta_gated,
                 }
         else:
             histo_defs[key] = {
@@ -83,6 +85,7 @@ def resolve_histogram_definitions(config, logger=None):
                 "title": f"{title};{x_title};Entries",
                 "type": plot_type,
                 "x_title": x_title,
+                "eta_gated": eta_gated,
             }
 
     if logger:
@@ -132,8 +135,14 @@ def build_and_fill_histograms(
     accepted_count_eta,
     sigma_multiplier=3.0,
     logger=None,
+    config=None,
 ):
     """Constructs ROOT histograms, cleans non-finite data, populates bins, and sets event normalization metadata."""
+    if config and "detector_parameters" in config:
+        sigma_multiplier = config["detector_parameters"].get(
+            "sigma_multiplier", sigma_multiplier
+        )
+
     histogram_registry = {}
 
     for key, meta in histo_defs.items():
@@ -190,16 +199,7 @@ def build_and_fill_histograms(
             else:
                 histogram.Fill(val)
 
-        is_eta_gated = any(
-            substr in key
-            for substr in [
-                "drift_chamber_hits_per_layer",
-                "tracker_hits_per_track",
-                "digi_hits",
-                "vtx_digi",
-                "siwr_digi",
-            ]
-        )
+        is_eta_gated = meta.get("eta_gated", False)
         accepted_cnt = accepted_count_eta if is_eta_gated else accepted_count_total
         histogram.accepted_events = accepted_cnt
 
@@ -212,7 +212,6 @@ def build_and_fill_histograms(
         )
 
         histogram_registry[key] = histogram
-        histogram_registry[hist_name] = histogram
 
     return histogram_registry
 

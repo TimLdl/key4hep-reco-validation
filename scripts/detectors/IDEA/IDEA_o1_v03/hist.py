@@ -38,10 +38,12 @@ def analyze_detector_simulation_file(
     max_pseudorapidity_override=None,
 ):
     """Executes event loop over IDEA subdetectors and accumulates validation metrics."""
-    det_params = det_cfg.get("geometry") or det_cfg.get("detector_parameters", {})
+    det_params = det_cfg.get("detector_parameters") or det_cfg.get("geometry", {})
+    subdetectors_cfg = det_cfg.get("subdetectors", {})
+    dch_cfg = subdetectors_cfg.get("drift_chamber", {})
     collections_cfg = det_cfg.get("collections", {})
 
-    total_drift_chamber_layers = det_params.get("total_drift_chamber_layers", 112)
+    # Global detector parameters
     magnetic_field_tesla = det_params.get("magnetic_field_tesla", 2.0)
     sigma_multiplier = det_params.get("sigma_multiplier", 3.0)
     max_eta = (
@@ -50,11 +52,19 @@ def analyze_detector_simulation_file(
         else det_params.get("max_pseudorapidity", 0.88)
     )
 
+    # Drift Chamber specific parameters (with fallback for backward compatibility)
+    total_drift_chamber_layers = dch_cfg.get(
+        "total_layers", det_params.get("total_drift_chamber_layers", 112)
+    )
+    superlayer_bit_name = dch_cfg.get(
+        "superlayer_bit_name", det_params.get("superlayer_bit_name", "superlayer")
+    )
+    layer_bit_name = dch_cfg.get(
+        "layer_bit_name", det_params.get("layer_bit_name", "layer")
+    )
+
     if bitfield_decoder is None:
         bitfield_decoder = init_bitfield_coder(det_cfg, logger)
-
-    superlayer_bit_name = det_params.get("superlayer_bit_name", "superlayer")
-    layer_bit_name = det_params.get("layer_bit_name", "layer")
 
     track_collections = collections_cfg.get(
         "track_collections", ["FittedTracks", "FittedTracksWithFilteredHits"]
@@ -226,13 +236,14 @@ def analyze_detector_simulation_file(
         f"[{particle_prefix}] Event processing complete. Generating histograms..."
     )
     return build_and_fill_histograms(
-        data_registry,
-        histo_defs,
-        particle_prefix,
-        accepted_count_total,
-        accepted_count_eta,
-        sigma_multiplier,
-        logger,
+        data_registry=data_registry,
+        histo_defs=histo_defs,
+        particle_prefix=particle_prefix,
+        accepted_count_total=accepted_count_total,
+        accepted_count_eta=accepted_count_eta,
+        sigma_multiplier=sigma_multiplier,
+        logger=logger,
+        config=det_cfg,
     )
 
 
