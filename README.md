@@ -1,4 +1,4 @@
-# Key4hep Reconstruction Validation Framework (k4_reco_val)
+# Key4hep Reconstruction Validation Framework (key4hep-reco-validation)
 
 An automated validation framework designed for evaluating detector simulation and reconstruction performance within the Key4hep ecosystem. The pipeline prouces and processes digitized PODIO ROOT event samples, extracts physics performance metrics, generates standardized histograms and vector graphics, and builds a static HTML dashboard for analysis and distribution.
 
