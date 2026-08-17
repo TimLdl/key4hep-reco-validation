@@ -47,6 +47,16 @@ plots:
     region: "barrel_endcap"
     apply_eta_cut: true
 
+  - key: "dch_total_hits"
+    title: "Drift Chamber Total Hits per Event"
+    x_title: "Total DCH Hits"
+    type: "asymmetric"
+    per_collection: false
+    system: "tracking"
+    technology: "drift_chamber"
+    region: "barrel"
+    apply_eta_cut: true
+
   - key: "siwr_digi_hits_per_event"
     title: "Silicon Wrapper Hits per Event"
     x_title: "Silicon Wrapper Hits per Event"

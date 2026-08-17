@@ -137,7 +137,7 @@ def build_and_fill_histograms(
     logger=None,
     config=None,
 ):
-    """Constructs ROOT histograms, cleans non-finite data, populates bins, and sets event normalization metadata."""
+    """Constructs ROOT histograms, trims outliers into edge bins, and sets precise integer ranges/ticks."""
     if config and "detector_parameters" in config:
         sigma_multiplier = config["detector_parameters"].get(
             "sigma_multiplier", sigma_multiplier
@@ -160,22 +160,43 @@ def build_and_fill_histograms(
 
         if n_entries == 0:
             bins, xmin, xmax = 10, 0.0, 1.0
+
         elif meta["type"] == "integer":
-            max_val = np.max(pts)
-            high_bound = int(max(1, np.ceil(max_val * 1.5)))
-            bins, xmin, xmax = high_bound + 1, -0.5, high_bound + 0.5
+            # Non-aggressive percentile cut to discard extreme corrupted integer spikes
+            p_low, p_high = np.percentile(pts, [0.05, 99.95])
+            min_val = int(np.floor(p_low))
+            max_val = int(np.ceil(p_high))
+
+            if min_val == max_val:
+                max_val = min_val + 1
+
+            bins = max(1, max_val - min_val + 1)
+            xmin = min_val - 0.5
+            xmax = max_val + 0.5
+
         elif meta["type"] == "symmetric":
-            bins = int(max(1, np.ceil(2 * (n_entries ** (1 / 3)))))
-            sigma = np.std(pts) if np.std(pts) > 0 else 1.0
-            mean = np.mean(pts)
-            xmin, xmax = (
-                mean - sigma_multiplier * sigma,
-                mean + sigma_multiplier * sigma,
-            )
+            # 0.1% to 99.9% percentile cutoff centered symmetrically
+            p_low, p_high = np.percentile(pts, [5, 95])
+            max_bound = max(abs(p_low), abs(p_high))
+            max_bound = max_bound * 1.05 if max_bound > 0 else 1.0
+
+            bins = int(max(10, np.ceil(2 * (n_entries ** (1 / 3)))))
+            xmin, xmax = -max_bound, max_bound
+
         elif meta["type"] == "asymmetric":
-            bins = int(max(1, np.ceil(2 * (n_entries ** (1 / 3)))))
-            max_val = np.max(pts)
-            xmin, xmax = 0.0, (max_val * 1.5 if max_val > 0 else 1.0)
+            # 0.1% to 99.9% percentile range selection with 2% margin
+            p_low, p_high = np.percentile(pts, [0.1, 99.9])
+            span = p_high - p_low
+            span = span if span > 0 else 1.0
+
+            xmin = p_low - 0.02 * span
+            xmax = p_high + 0.02 * span
+
+            # Preserve non-negative bounds for strict positive physical quantities
+            if np.min(pts) >= 0:
+                xmin = max(0.0, xmin)
+
+            bins = int(max(10, np.ceil(2 * (n_entries ** (1 / 3)))))
 
         if xmin >= xmax or np.isnan(xmin) or np.isnan(xmax):
             xmin, xmax = 0.0, 1.0
@@ -190,14 +211,21 @@ def build_and_fill_histograms(
         histogram.GetXaxis().SetTitle(meta.get("x_title", ""))
         histogram.GetYaxis().SetTitle("Entries")
 
-        bin_width = (xmax - xmin) / bins if bins > 0 else 1.0
-        for val in pts:
-            if val < xmin:
-                histogram.Fill(xmin + 0.5 * bin_width)
-            elif val >= xmax:
-                histogram.Fill(xmax - 0.5 * bin_width)
+        # Format integer X-axis tick divisions cleanly
+        if meta["type"] == "integer":
+            if bins <= 20:
+                histogram.GetXaxis().SetNdivisions(bins, False)
             else:
-                histogram.Fill(val)
+                histogram.GetXaxis().SetNdivisions(510)
+
+        # Accumulate out-of-bounds outliers into outermost (first/last) bin centers
+        bin_width = (xmax - xmin) / bins
+        first_bin_center = xmin + 0.5 * bin_width
+        last_bin_center = xmax - 0.5 * bin_width
+
+        clamped_pts = np.clip(pts, first_bin_center, last_bin_center)
+        for val in clamped_pts:
+            histogram.Fill(val)
 
         apply_eta_cut = meta.get("apply_eta_cut", meta.get("eta_gated", False))
         accepted_cnt = accepted_count_eta if apply_eta_cut else accepted_count_total

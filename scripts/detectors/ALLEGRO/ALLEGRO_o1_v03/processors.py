@@ -1,5 +1,6 @@
-import math
 from collections import Counter
+import math
+
 from detectors.k4_reco_val_utils.context import EventContext
 from detectors.k4_reco_val_utils.helpers import (
     calculate_track_momentum,
@@ -26,36 +27,43 @@ def process_silicon_occupancy(ctx: EventContext, data_registry: dict) -> None:
 
 
 def process_drift_chamber(ctx: EventContext, data_registry: dict) -> None:
-    """Extracts Drift Chamber layer hit distributions and dN/dx PID measurements."""
+    """Extracts Drift Chamber total hits, layer hit distributions, and dN/dx PID measurements."""
     subdetectors_cfg = ctx.config.get("subdetectors", {})
     dch_cfg = subdetectors_cfg.get("drift_chamber", {})
     collections_cfg = ctx.config.get("collections", {})
 
-    if ctx.is_accepted_eta and "drift_chamber_hits_per_layer" in data_registry:
-        total_layers = dch_cfg.get("total_layers", 112)
-        superlayer_bit_name = dch_cfg.get("superlayer_bit_name", "superlayer")
-        layer_bit_name = dch_cfg.get("layer_bit_name", "layer")
-
-        layer_hits = Counter()
+    if ctx.is_accepted_eta:
         dch_digis = get_collection_hits(ctx.event_data, collections_cfg, "dch_digis")
 
-        if ctx.bitfield_decoder:
-            for hit in dch_digis:
-                cell_id = hit.getCellID()
-                idx = ctx.bitfield_decoder.get(
-                    cell_id, superlayer_bit_name
-                ) * 8 + ctx.bitfield_decoder.get(cell_id, layer_bit_name)
-                layer_hits[idx] += 1
+        if "dch_total_hits" in data_registry:
+            data_registry["dch_total_hits"].append(len(dch_digis))
 
-        data_registry["drift_chamber_hits_per_layer"].extend(
-            [0] * (total_layers - len(layer_hits))
-        )
-        data_registry["drift_chamber_hits_per_layer"].extend(layer_hits.values())
+        if "drift_chamber_hits_per_layer" in data_registry:
+            total_layers = dch_cfg.get("total_layers", 112)
+            superlayer_bit_name = dch_cfg.get("superlayer_bit_name", "superlayer")
+            layer_bit_name = dch_cfg.get("layer_bit_name", "layer")
+
+            layer_hits = Counter()
+            if ctx.bitfield_decoder:
+                for hit in dch_digis:
+                    cell_id = hit.getCellID()
+                    idx = ctx.bitfield_decoder.get(
+                        cell_id, superlayer_bit_name
+                    ) * 8 + ctx.bitfield_decoder.get(cell_id, layer_bit_name)
+                    layer_hits[idx] += 1
+
+            # Fixed layer index alignment across range(0, total_layers)
+            data_registry["drift_chamber_hits_per_layer"].extend(
+                [layer_hits[idx] for idx in range(total_layers)]
+            )
 
     if "dch_dndx_value" in data_registry:
         for dqdx in get_collection_hits(ctx.event_data, collections_cfg, "dch_dndx"):
-            val = getattr(dqdx.getDQdx(), "value", dqdx.getDQdx())
-            data_registry["dch_dndx_value"].append(val)
+            raw_dqdx = dqdx.getDQdx()
+            val = getattr(raw_dqdx, "value", raw_dqdx)
+            # Filter out uncalculated / failed track sentinel values (-999.0)
+            if val is not None and float(val) > 0:
+                data_registry["dch_dndx_value"].append(float(val))
 
 
 def process_topoclusters(ctx: EventContext, data_registry: dict) -> None:
@@ -129,13 +137,16 @@ def process_track_reconstruction(ctx: EventContext, data_registry: dict) -> None
                     track.trackerHits_size()
                 )
 
-            if (
-                track.getNdf() > 0
-                and f"track_fit_chi2_over_ndf_{col_name}" in data_registry
-            ):
-                data_registry[f"track_fit_chi2_over_ndf_{col_name}"].append(
-                    track.getChi2() / track.getNdf()
-                )
+            if track.getNdf() > 0:
+                chi2_over_ndf = track.getChi2() / track.getNdf()
+                # Ignore failed fits causing severe axis expansion (chi2/ndf > 100)
+                if (
+                    chi2_over_ndf < 100.0
+                    and f"track_fit_chi2_over_ndf_{col_name}" in data_registry
+                ):
+                    data_registry[f"track_fit_chi2_over_ndf_{col_name}"].append(
+                        chi2_over_ndf
+                    )
 
             if track.trackStates_size() > 0:
                 st = track.getTrackStates()[0]
@@ -150,7 +161,7 @@ def process_track_reconstruction(ctx: EventContext, data_registry: dict) -> None
                     )
                     if matched_mc:
                         p_mc = matched_mc.getMomentum()
-                        p_true = math.sqrt(p_mc.x**2 + p_mc.y**2 + p_mc.z**2)
+                        p_true = math.hypot(p_mc.x, p_mc.y, p_mc.z)
                         if p_true > 0:
                             data_registry[f"momentum_resolution_{col_name}"].append(
                                 (p_reco - p_true) / p_true
@@ -197,13 +208,9 @@ def process_track_cluster_matching(ctx: EventContext, data_registry: dict) -> No
             min_delta_r, matched_E = float("inf"), 0.0
             for cluster in topocluster_hits:
                 pos = cluster.getPosition()
-                pos_mag = math.sqrt(pos.x**2 + pos.y**2 + pos.z**2)
+                pos_mag = math.hypot(pos.x, pos.y, pos.z)
                 if pos_mag > 0:
-                    cx, cy, cz = (
-                        pos.x / pos_mag,
-                        pos.y / pos_mag,
-                        pos.z / pos_mag,
-                    )
+                    cx, cy, cz = pos.x / pos_mag, pos.y / pos_mag, pos.z / pos_mag
                     dot_p = max(-1.0, min(1.0, tx * cx + ty * cy + tz * cz))
                     delta_r = math.acos(dot_p)
                     if delta_r < min_delta_r:

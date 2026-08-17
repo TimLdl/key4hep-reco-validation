@@ -212,6 +212,9 @@ def main():
         )
         sys.exit(1)
 
+    # Extract detector name dynamically if present in config
+    detector_name = det_cfg.get("detector", "")
+
     file_map = {}
     for item in args.inputs:
         if "=" in item:
@@ -286,7 +289,6 @@ def main():
             key = spec["key"]
             histogram = find_histogram(registry, ds_key, key)
             if histogram:
-                # Structure: <output-dir>/<particle>/<system>/<technology>/<region>[/<signal_type>]/<key>.png
                 path_parts = [
                     ds_key,
                     spec["system"],
@@ -299,13 +301,17 @@ def main():
                 target_subpath = os.path.join(*path_parts)
                 target_dir = os.path.join(args.output_dir, target_subpath)
 
+                # Prepend detector name generically if available
+                det_prefix = f"{detector_name} - " if detector_name else ""
+                plot_title = f"{det_prefix}{ds_key.capitalize()} - {spec['title']}"
+
                 generate_standalone_plot(
                     hist=histogram,
                     filename=f"{key}.png",
                     out_dir=target_dir,
                     style_cfg=style_opts,
                     draw_opt="COLZ" if isinstance(histogram, ROOT.TH2) else "HIST",
-                    title=f"{ds_key.capitalize()} - {spec['title']}",
+                    title=plot_title,
                     line_color=color,
                     line_style=style,
                     canvas_dims=canvas_dims,

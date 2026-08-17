@@ -45,6 +45,15 @@ plots:
     region: "barrel_endcap"
     apply_eta_cut: true
 
+  - key: "vtx_hits_per_layer"
+    title: "Vertex Detector Hits per Layer"
+    x_title: "Layer Index"
+    type: "integer"
+    system: "vertex"
+    technology: "silicon_pixel"
+    region: "barrel_endcap"
+    apply_eta_cut: true
+
   - key: "siwr_digi_hits_per_event"
     title: "Silicon Wrapper Hits per Event"
     x_title: "Silicon Wrapper Hits per Event"
@@ -92,15 +101,6 @@ plots:
     signal_type: "scintillation"
     apply_eta_cut: false
 
-  - key: "calorimeter_c_over_s_ratio"
-    title: "Dual-Readout Energy Ratio (E_{Cherenkov} / E_{Scintillation})"
-    x_title: "E_{Cherenkov} / E_{Scintillation}"
-    type: "symmetric"
-    system: "calorimetry"
-    technology: "dual_readout"
-    region: "combined"
-    apply_eta_cut: false
-
   - key: "topocluster_count"
     title: "TopoCluster Multiplicity"
     x_title: "Number of TopoClusters per Event"
@@ -114,6 +114,24 @@ plots:
     title: "Highest Cluster Energy Profile"
     x_title: "Highest Cluster Energy per Event [GeV]"
     type: "asymmetric"
+    system: "calorimetry"
+    technology: "topocluster"
+    region: "global"
+    apply_eta_cut: false
+
+  - key: "topocluster_delta_phi"
+    title: "TopoCluster #Delta#phi (Cluster - MCParticle)"
+    x_title: "#Delta#phi [rad]"
+    type: "symmetric"
+    system: "calorimetry"
+    technology: "topocluster"
+    region: "global"
+    apply_eta_cut: false
+
+  - key: "topocluster_delta_theta"
+    title: "TopoCluster #Delta#theta (Cluster - MCParticle)"
+    x_title: "#Delta#theta [rad]"
+    type: "symmetric"
     system: "calorimetry"
     technology: "topocluster"
     region: "global"
