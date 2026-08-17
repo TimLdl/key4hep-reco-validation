@@ -238,9 +238,10 @@ def main():
     track_collections = det_cfg.get("collections", {}).get("track_collections", [])
     plot_specs = []
     for plot in det_cfg.get("plots", []):
-        subdet = plot.get("subdetector", "general")
-        algo = plot.get("algorithm", "general")
-        mod = plot.get("module_type", "general")
+        system = plot.get("system", plot.get("subdetector", "general"))
+        technology = plot.get("technology", plot.get("algorithm", "general"))
+        region = plot.get("region", plot.get("module_type", "general"))
+        signal_type = plot.get("signal_type", None)
 
         if plot.get("per_collection"):
             for col in track_collections:
@@ -248,9 +249,10 @@ def main():
                     {
                         "key": f"{plot['key']}_{col}",
                         "title": f"{plot['title']} ({col})",
-                        "subdetector": subdet,
-                        "algorithm": algo,
-                        "module_type": mod,
+                        "system": system,
+                        "technology": technology,
+                        "region": region,
+                        "signal_type": signal_type,
                     }
                 )
         else:
@@ -258,9 +260,10 @@ def main():
                 {
                     "key": plot["key"],
                     "title": plot["title"],
-                    "subdetector": subdet,
-                    "algorithm": algo,
-                    "module_type": mod,
+                    "system": system,
+                    "technology": technology,
+                    "region": region,
+                    "signal_type": signal_type,
                 }
             )
 
@@ -283,13 +286,17 @@ def main():
             key = spec["key"]
             histogram = find_histogram(registry, ds_key, key)
             if histogram:
-                # Structure: <output-dir>/<particle>/<subdetector>/<algorithm>/<module_type>/<key>.png
-                target_subpath = os.path.join(
+                # Structure: <output-dir>/<particle>/<system>/<technology>/<region>[/<signal_type>]/<key>.png
+                path_parts = [
                     ds_key,
-                    spec["subdetector"],
-                    spec["algorithm"],
-                    spec["module_type"],
-                )
+                    spec["system"],
+                    spec["technology"],
+                    spec["region"],
+                ]
+                if spec["signal_type"]:
+                    path_parts.append(spec["signal_type"])
+
+                target_subpath = os.path.join(*path_parts)
                 target_dir = os.path.join(args.output_dir, target_subpath)
 
                 generate_standalone_plot(

@@ -2,7 +2,6 @@ import math
 import os
 import shutil
 import sys
-from collections import Counter
 from dd4hep import dd4hep
 import numpy as np
 import ROOT
@@ -12,16 +11,10 @@ from k4_reco_val_pipeline_utils.logger import setup_logger
 logger = setup_logger("helpers")
 
 
-def evaluate_particle_eta_acceptance(event_data, max_eta=None):
-    """Evaluates whether the primary MC particle falls within the detector pseudorapidity acceptance."""
-    if max_eta is None:
+def evaluate_particle_eta_acceptance(primary_mc, max_eta=None):
+    """Evaluates whether the primary MC particle falls within pseudorapidity acceptance."""
+    if max_eta is None or not primary_mc:
         return True, 0.0
-
-    mc_particles = event_data.get("MCParticles") or []
-    primary_mc = next((p for p in mc_particles if p.getGeneratorStatus() == 1), None)
-
-    if not primary_mc:
-        return False, 0.0
 
     p = primary_mc.getMomentum()
     p_mag = math.sqrt(p.x**2 + p.y**2 + p.z**2)
@@ -38,10 +31,17 @@ def init_bitfield_coder(config, logger=None):
     geom_cfg = config.get("geometry", {})
     det_params = config.get("detector_parameters", {})
 
-    bitfield_str = geom_cfg.get("bitfield") or det_params.get(
-        "bitfield_string",
-        "system:5,side:-2,module:8,sensor:8,superlayer:6,layer:8",
-    )
+    bitfield_str = geom_cfg.get("bitfield") or det_params.get("bitfield_string")
+    if not bitfield_str:
+        for sub_cfg in config.get("subdetectors", {}).values():
+            if isinstance(sub_cfg, dict) and "bitfield_string" in sub_cfg:
+                bitfield_str = sub_cfg["bitfield_string"]
+                break
+
+    if not bitfield_str:
+        if logger:
+            logger.debug("No bitfield pattern defined in configuration.")
+        return None
 
     try:
         coder = dd4hep.BitFieldCoder(bitfield_str)
@@ -67,7 +67,7 @@ def resolve_histogram_definitions(config, logger=None):
         title = plot["title"]
         plot_type = plot.get("type", "asymmetric")
         x_title = plot.get("x_title", "")
-        eta_gated = plot.get("eta_gated", False)
+        apply_eta_cut = plot.get("apply_eta_cut", plot.get("eta_gated", False))
 
         if plot.get("per_collection"):
             for col in track_collections:
@@ -77,7 +77,7 @@ def resolve_histogram_definitions(config, logger=None):
                     "title": f"{title} ({col});{x_title};Entries",
                     "type": plot_type,
                     "x_title": x_title,
-                    "eta_gated": eta_gated,
+                    "apply_eta_cut": apply_eta_cut,
                 }
         else:
             histo_defs[key] = {
@@ -85,7 +85,7 @@ def resolve_histogram_definitions(config, logger=None):
                 "title": f"{title};{x_title};Entries",
                 "type": plot_type,
                 "x_title": x_title,
-                "eta_gated": eta_gated,
+                "apply_eta_cut": apply_eta_cut,
             }
 
     if logger:
@@ -199,11 +199,10 @@ def build_and_fill_histograms(
             else:
                 histogram.Fill(val)
 
-        is_eta_gated = meta.get("eta_gated", False)
-        accepted_cnt = accepted_count_eta if is_eta_gated else accepted_count_total
+        apply_eta_cut = meta.get("apply_eta_cut", meta.get("eta_gated", False))
+        accepted_cnt = accepted_count_eta if apply_eta_cut else accepted_count_total
         histogram.accepted_events = accepted_cnt
 
-        # Store metadata in GetListOfFunctions() to ensure persistence in ROOT files
         existing_info = histogram.GetListOfFunctions().FindObject("accepted_events")
         if existing_info:
             histogram.GetListOfFunctions().Remove(existing_info)
@@ -217,6 +216,7 @@ def build_and_fill_histograms(
 
 
 def clear_directory(directory_path):
+    """Clears and recreates a target directory."""
     if os.path.exists(directory_path):
         try:
             shutil.rmtree(directory_path)
@@ -233,3 +233,14 @@ def clear_directory(directory_path):
     except Exception as e:
         logger.error(f"Failed to create directory '{directory_path}': {e}")
         raise
+
+
+def get_collection_hits(event_data, collections_cfg, key):
+    """Retrieves objects from single or multiple collection names."""
+    col_names = collections_cfg.get(key, [])
+    if isinstance(col_names, str):
+        col_names = [col_names]
+    hits = []
+    for col_name in col_names:
+        hits.extend(event_data.get(col_name) or [])
+    return hits
