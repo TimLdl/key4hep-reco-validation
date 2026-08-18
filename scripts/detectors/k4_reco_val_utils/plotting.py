@@ -34,26 +34,6 @@ def find_histogram(registry, dataset_key, plot_key):
     return None
 
 
-def get_accepted_events(hist):
-    """Extracts accepted_events metadata from Python attributes or ROOT GetListOfFunctions()."""
-    if not hist:
-        return 0
-    if hasattr(hist, "accepted_events") and hist.accepted_events > 0:
-        return hist.accepted_events
-    if hasattr(hist, "GetListOfFunctions"):
-        funcs = hist.GetListOfFunctions()
-        if funcs:
-            obj = funcs.FindObject("accepted_events")
-            if obj:
-                try:
-                    val = int(obj.GetTitle())
-                    hist.accepted_events = val
-                    return val
-                except (ValueError, TypeError):
-                    pass
-    return getattr(hist, "accepted_events", 0)
-
-
 def apply_root_graphics_style(cfg):
     """Configures global ROOT graphics style parameters."""
     ROOT.gROOT.ForceStyle(True)
@@ -152,7 +132,7 @@ def generate_standalone_plot(
     hist.Draw(draw_opt)
     optimize_axis_ticks(hist)
 
-    n_ev = get_accepted_events(hist)
+    n_ev = hist.GetEntries()
     full_title = f"{title}  (N_{{ev}} = {n_ev})" if title else ""
     latex = draw_title_latex(full_title, canvas)
     if latex:

@@ -41,6 +41,9 @@ plots:
     title: "Vertex Detector Hits per Event"
     x_title: "Vertex Detector Hits per Event"
     type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 50.0
     per_collection: false
     system: "vertex"
     technology: "silicon_pixel"
@@ -51,6 +54,9 @@ plots:
     title: "Drift Chamber Total Hits per Event"
     x_title: "Total DCH Hits"
     type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 200.0
     per_collection: false
     system: "tracking"
     technology: "drift_chamber"
@@ -61,6 +67,9 @@ plots:
     title: "Silicon Wrapper Hits per Event"
     x_title: "Silicon Wrapper Hits per Event"
     type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 50.0
     per_collection: false
     system: "tracking"
     technology: "silicon_wrapper"
@@ -71,6 +80,9 @@ plots:
     title: "Drift Chamber Hits per Layer"
     x_title: "Number of Hits per Layer"
     type: "integer"
+    bins: 50
+    xmin: 0.0
+    xmax: 10.0
     per_collection: false
     system: "tracking"
     technology: "drift_chamber"
@@ -81,6 +93,9 @@ plots:
     title: "Drift Chamber dN/dx Measurement"
     x_title: "Drift Chamber dN/dx Measurement"
     type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 5.0
     per_collection: false
     system: "tracking"
     technology: "drift_chamber"
@@ -91,6 +106,9 @@ plots:
     title: "Tracker Hits per Track"
     x_title: "Number of Tracker Hits per Track"
     type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 125.0
     per_collection: true
     system: "tracking"
     technology: "track_reconstruction"
@@ -101,6 +119,9 @@ plots:
     title: "Reconstructed Tracks per Event"
     x_title: "Reconstructed Tracks per Event"
     type: "integer"
+    bins: 10
+    xmin: 0.0
+    xmax: 5.0
     per_collection: true
     system: "tracking"
     technology: "track_reconstruction"
@@ -111,6 +132,9 @@ plots:
     title: "Track Fit Quality #chi^{2} / ndf"
     x_title: "#chi^{2} / ndf"
     type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 10.0
     per_collection: true
     system: "tracking"
     technology: "track_reconstruction"
@@ -121,6 +145,9 @@ plots:
     title: "Momentum Resolution (p_{reco} - p_{true}) / p_{true}"
     x_title: "(p_{reco} - p_{true}) / p_{true}"
     type: "symmetric"
+    bins: 10
+    xmin: -0.25
+    xmax: 0.25
     per_collection: true
     system: "tracking"
     technology: "track_reconstruction"
@@ -131,6 +158,9 @@ plots:
     title: "Transverse Impact Parameter d_{0} [mm]"
     x_title: "Transverse Impact Parameter d_{0} [mm]"
     type: "symmetric"
+    bins: 10
+    xmin: -1.0
+    xmax: 1.0
     per_collection: true
     system: "tracking"
     technology: "track_reconstruction"
@@ -141,6 +171,9 @@ plots:
     title: "LAr ECal Cell Hits per Event"
     x_title: "LAr ECal Cell Hits per Event"
     type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 1000.0
     per_collection: false
     system: "calorimetry"
     technology: "lar_calorimeter"
@@ -151,6 +184,9 @@ plots:
     title: "Calorimeter Energy Linearity E_{total,reco} / E_{true}"
     x_title: "E_{total,reco} / E_{true}"
     type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 2.0
     per_collection: false
     system: "calorimetry"
     technology: "lar_calorimeter"
@@ -161,6 +197,9 @@ plots:
     title: "EM Shower Containment Ratio (E_{ECal} / E_{total})"
     x_title: "E_{ECal} / E_{total}"
     type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 1.1
     per_collection: false
     system: "calorimetry"
     technology: "lar_calorimeter"
@@ -171,6 +210,9 @@ plots:
     title: "Number of TopoClusters per Event"
     x_title: "Number of TopoClusters per Event"
     type: "integer"
+    bins: 40
+    xmin: 0.0
+    xmax: 100.0
     per_collection: false
     system: "calorimetry"
     technology: "topocluster"
@@ -181,6 +223,9 @@ plots:
     title: "Leading TopoCluster Truth Response (E_{cluster} / E_{true})"
     x_title: "E_{cluster} / E_{true}"
     type: "asymmetric"
+    bins: 40
+    xmin: 0.0
+    xmax: 2.0
     per_collection: false
     system: "calorimetry"
     technology: "topocluster"
@@ -191,6 +236,9 @@ plots:
     title: "Track-Cluster E_{cluster} / p_{track}"
     x_title: "E_{cluster} / p_{track}"
     type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 2.0
     per_collection: false
     system: "track_calo_matching"
     technology: "particle_flow"

@@ -68,6 +68,9 @@ def resolve_histogram_definitions(config, logger=None):
         plot_type = plot.get("type", "asymmetric")
         x_title = plot.get("x_title", "")
         apply_eta_cut = plot.get("apply_eta_cut", plot.get("eta_gated", False))
+        bins = plot.get("bins", 100)
+        xmin = plot.get("xmin", 0.0)
+        xmax = plot.get("xmax", 1.0)
 
         if plot.get("per_collection"):
             for col in track_collections:
@@ -78,6 +81,9 @@ def resolve_histogram_definitions(config, logger=None):
                     "type": plot_type,
                     "x_title": x_title,
                     "apply_eta_cut": apply_eta_cut,
+                    "bins": bins,
+                    "xmin": xmin,
+                    "xmax": xmax,
                 }
         else:
             histo_defs[key] = {
@@ -86,6 +92,9 @@ def resolve_histogram_definitions(config, logger=None):
                 "type": plot_type,
                 "x_title": x_title,
                 "apply_eta_cut": apply_eta_cut,
+                "bins": bins,
+                "xmin": xmin,
+                "xmax": xmax,
             }
 
     if logger:
@@ -137,12 +146,7 @@ def build_and_fill_histograms(
     logger=None,
     config=None,
 ):
-    """Constructs ROOT histograms, trims outliers into edge bins, and sets precise integer ranges/ticks."""
-    if config and "detector_parameters" in config:
-        sigma_multiplier = config["detector_parameters"].get(
-            "sigma_multiplier", sigma_multiplier
-        )
-
+    """Constructs ROOT histograms using configured bin bounds and clamps out-of-bounds outliers into edge bins."""
     histogram_registry = {}
 
     for key, meta in histo_defs.items():
@@ -158,53 +162,14 @@ def build_and_fill_histograms(
                 f"[{key}] Discarded {len(raw_pts) - n_entries} non-finite (NaN/Inf) values."
             )
 
-        if n_entries == 0:
-            bins, xmin, xmax = 10, 0.0, 1.0
-
-        elif meta["type"] == "integer":
-            # Non-aggressive percentile cut to discard extreme corrupted integer spikes
-            p_low, p_high = np.percentile(pts, [0.05, 99.95])
-            min_val = int(np.floor(p_low))
-            max_val = int(np.ceil(p_high))
-
-            if min_val == max_val:
-                max_val = min_val + 1
-
-            bins = max(1, max_val - min_val + 1)
-            xmin = min_val - 0.5
-            xmax = max_val + 0.5
-
-        elif meta["type"] == "symmetric":
-            # 0.1% to 99.9% percentile cutoff centered symmetrically
-            p_low, p_high = np.percentile(pts, [5, 95])
-            max_bound = max(abs(p_low), abs(p_high))
-            max_bound = max_bound * 1.05 if max_bound > 0 else 1.0
-
-            bins = int(max(10, np.ceil(2 * (n_entries ** (1 / 3)))))
-            xmin, xmax = -max_bound, max_bound
-
-        elif meta["type"] == "asymmetric":
-            # 0.1% to 99.9% percentile range selection with 2% margin
-            p_low, p_high = np.percentile(pts, [0.1, 99.9])
-            span = p_high - p_low
-            span = span if span > 0 else 1.0
-
-            xmin = p_low - 0.02 * span
-            xmax = p_high + 0.02 * span
-
-            # Preserve non-negative bounds for strict positive physical quantities
-            if np.min(pts) >= 0:
-                xmin = max(0.0, xmin)
-
-            bins = int(max(10, np.ceil(2 * (n_entries ** (1 / 3)))))
-
-        if xmin >= xmax or np.isnan(xmin) or np.isnan(xmax):
-            xmin, xmax = 0.0, 1.0
+        bins = meta.get("bins", 100)
+        xmin = meta.get("xmin", 0.0)
+        xmax = meta.get("xmax", 1.0)
 
         hist_name = f"h_{particle_prefix}_{key}"
         histogram = (
             ROOT.TH1I(hist_name, meta["title"], bins, xmin, xmax)
-            if meta["type"] == "integer"
+            if meta.get("type") == "integer"
             else ROOT.TH1D(hist_name, meta["title"], bins, xmin, xmax)
         )
         histogram.SetDirectory(0)
@@ -212,7 +177,7 @@ def build_and_fill_histograms(
         histogram.GetYaxis().SetTitle("Entries")
 
         # Format integer X-axis tick divisions cleanly
-        if meta["type"] == "integer":
+        if meta.get("type") == "integer":
             if bins <= 20:
                 histogram.GetXaxis().SetNdivisions(bins, False)
             else:
