@@ -76,25 +76,25 @@ plots:
     title: "DCH Hits per Layer"
     x_title: "Number of Hits per Layer"
     type: "integer"
-    bins: 50
-    xmin: 0.0
-    xmax: 20.0
-    system: "tracking"
-    technology: "drift_chamber"
-    region: "barrel"
-    apply_eta_cut: true
-
-  - key: "dch_dndx_value"
-    title: "Drift Chamber dN/dx Distribution"
-    x_title: "DCH dN/dx [clusters/cm]"
-    type: "asymmetric"
-    bins: 12
+    bins: 5
     xmin: 0.0
     xmax: 5.0
     system: "tracking"
     technology: "drift_chamber"
     region: "barrel"
-    apply_eta_cut: false
+    apply_eta_cut: true
+
+  # - key: "dch_dndx_value"
+  #   title: "Drift Chamber dN/dx Distribution"
+  #   x_title: "DCH dN/dx [clusters/cm]"
+  #   type: "asymmetric"
+  #   bins: 12
+  #   xmin: 0.0
+  #   xmax: 5.0
+  #   system: "tracking"
+  #   technology: "drift_chamber"
+  #   region: "barrel"
+  #   apply_eta_cut: false
 
   - key: "calorimeter_linearity_cherenkov"
     title: "Cherenkov Linearity [E_{reco}/E_{true}]"
@@ -236,7 +236,7 @@ plots:
 
 processors:
   - detectors.IDEA.IDEA_o1_v03.processors.process_digi_and_occupancy
-  - detectors.IDEA.IDEA_o1_v03.processors.process_drift_chamber_dndx
+  # - detectors.IDEA.IDEA_o1_v03.processors.process_drift_chamber_dndx
   - detectors.IDEA.IDEA_o1_v03.processors.process_tracking_performance
   - detectors.IDEA.IDEA_o1_v03.processors.process_dual_readout_calorimetry
   - detectors.IDEA.IDEA_o1_v03.processors.process_topoclusters

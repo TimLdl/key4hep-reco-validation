@@ -13,15 +13,13 @@ def process_silicon_occupancy(ctx: EventContext, data_registry: dict) -> None:
     if not ctx.is_accepted_eta:
         return
 
-    collections_cfg = ctx.config.get("collections", {})
-
     if "vtx_digi_hits_per_event" in data_registry:
-        vtx_hits = get_collection_hits(ctx.event_data, collections_cfg, "vtx_digis")
+        vtx_hits = get_collection_hits(ctx, "vtx_digis")
         data_registry["vtx_digi_hits_per_event"].append(len(vtx_hits))
 
     if "siwr_digi_hits_per_event" in data_registry:
         siwr_hits = get_collection_hits(
-            ctx.event_data, collections_cfg, "si_wrapper_digis"
+            ctx, "si_wrapper_digis"
         )
         data_registry["siwr_digi_hits_per_event"].append(len(siwr_hits))
 
@@ -30,10 +28,9 @@ def process_drift_chamber(ctx: EventContext, data_registry: dict) -> None:
     """Extracts Drift Chamber total hits, layer hit distributions, and dN/dx PID measurements."""
     subdetectors_cfg = ctx.config.get("subdetectors", {})
     dch_cfg = subdetectors_cfg.get("drift_chamber", {})
-    collections_cfg = ctx.config.get("collections", {})
 
     if ctx.is_accepted_eta:
-        dch_digis = get_collection_hits(ctx.event_data, collections_cfg, "dch_digis")
+        dch_digis = get_collection_hits(ctx, "dch_digis")
 
         if "dch_total_hits" in data_registry:
             data_registry["dch_total_hits"].append(len(dch_digis))
@@ -58,7 +55,7 @@ def process_drift_chamber(ctx: EventContext, data_registry: dict) -> None:
             )
 
     if "dch_dndx_value" in data_registry:
-        for dqdx in get_collection_hits(ctx.event_data, collections_cfg, "dch_dndx"):
+        for dqdx in get_collection_hits(ctx, "dch_dndx"):
             raw_dqdx = dqdx.getDQdx()
             val = getattr(raw_dqdx, "value", raw_dqdx)
             # Filter out uncalculated / failed track sentinel values (-999.0)
@@ -70,7 +67,7 @@ def process_topoclusters(ctx: EventContext, data_registry: dict) -> None:
     """Calculates topocluster multiplicities and leading cluster truth response."""
     collections_cfg = ctx.config.get("collections", {})
     topocluster_hits = get_collection_hits(
-        ctx.event_data, collections_cfg, "topoclusters"
+        ctx, "topoclusters"
     )
 
     if "topocluster_count" in data_registry:
@@ -90,9 +87,9 @@ def process_topoclusters(ctx: EventContext, data_registry: dict) -> None:
 def process_calorimetry(ctx: EventContext, data_registry: dict) -> None:
     """Evaluates LAr ECal and HCal energy response, linearity, and shower containment."""
     collections_cfg = ctx.config.get("collections", {})
-    ecal_b = get_collection_hits(ctx.event_data, collections_cfg, "ecal_barrel_hits")
-    ecal_e = get_collection_hits(ctx.event_data, collections_cfg, "ecal_endcap_hits")
-    hcal_e = get_collection_hits(ctx.event_data, collections_cfg, "hcal_endcap_hits")
+    ecal_b = get_collection_hits(ctx, "ecal_barrel_hits")
+    ecal_e = get_collection_hits(ctx, "ecal_endcap_hits")
+    hcal_e = get_collection_hits(ctx, "hcal_endcap_hits")
 
     if "ecal_cell_hits_per_event" in data_registry:
         data_registry["ecal_cell_hits_per_event"].append(len(ecal_b) + len(ecal_e))
@@ -189,7 +186,7 @@ def process_track_cluster_matching(ctx: EventContext, data_registry: dict) -> No
     primary_track_col = track_collections[0]
     tracks = ctx.event_data.get(primary_track_col) or []
     topocluster_hits = get_collection_hits(
-        ctx.event_data, collections_cfg, "topoclusters"
+        ctx, "topoclusters"
     )
 
     for track in tracks:

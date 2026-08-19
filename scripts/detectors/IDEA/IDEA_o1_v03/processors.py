@@ -2,36 +2,10 @@ from collections import Counter
 import math
 
 from detectors.k4_reco_val_utils.context import EventContext
-from detectors.k4_reco_val_utils.helpers import calculate_track_momentum
-
-
-def safe_get_collection_hits(ctx: EventContext, col_key: str) -> list:
-    """Safely retrieves hits for a collection key or name, handling missing PODIO collections gracefully."""
-    cols = ctx.config.get("collections", {})
-    col_names = cols.get(col_key, col_key)
-    if isinstance(col_names, str):
-        col_names = [col_names]
-
-    hits = []
-    for col_name in col_names:
-        try:
-            coll = ctx.event_data.get(col_name)
-            if coll:
-                hits.extend(coll)
-        except (KeyError, RuntimeError):
-            pass
-    return hits
-
-
-def get_hit_energy(hit) -> float:
-    """Extracts energy/amplitude from a calorimeter hit regardless of attribute naming differences."""
-    if hasattr(hit, "getEnergy"):
-        return hit.getEnergy()
-    if hasattr(hit, "getAmplitude"):
-        return hit.getAmplitude()
-    if hasattr(hit, "getNphotons"):
-        return float(hit.getNphotons())
-    return 0.0
+from detectors.k4_reco_val_utils.helpers import (
+    calculate_track_momentum,
+    get_collection_hits,
+)
 
 
 def process_digi_and_occupancy(ctx: EventContext, data_registry: dict) -> None:
@@ -45,7 +19,7 @@ def process_digi_and_occupancy(ctx: EventContext, data_registry: dict) -> None:
         "vtx_digi_hits_per_event" in data_registry
         or "vtx_hits_per_layer" in data_registry
     ):
-        vtx_hits = safe_get_collection_hits(ctx, "vtx_digis")
+        vtx_hits = get_collection_hits(ctx, "vtx_digis")
 
         if "vtx_digi_hits_per_event" in data_registry:
             data_registry["vtx_digi_hits_per_event"].append(len(vtx_hits))
@@ -59,12 +33,12 @@ def process_digi_and_occupancy(ctx: EventContext, data_registry: dict) -> None:
             data_registry["vtx_hits_per_layer"].extend(vtx_layer_hits.values())
 
     if "siwr_digi_hits_per_event" in data_registry:
-        siwr_hits = safe_get_collection_hits(ctx, "si_wrapper_digis")
+        siwr_hits = get_collection_hits(ctx, "si_wrapper_digis")
         data_registry["siwr_digi_hits_per_event"].append(len(siwr_hits))
 
     if "drift_chamber_hits_per_layer" in data_registry:
         layer_hits = Counter()
-        dch_digis = safe_get_collection_hits(ctx, "dch_digis")
+        dch_digis = get_collection_hits(ctx, "dch_digis")
         total_layers = sub_cfg.get("total_layers", 112)
         sl_bit = sub_cfg.get("superlayer_bit_name", "superlayer")
         l_bit = sub_cfg.get("layer_bit_name", "layer")
@@ -83,20 +57,19 @@ def process_digi_and_occupancy(ctx: EventContext, data_registry: dict) -> None:
         )
 
     if "muon_system_hits_per_event" in data_registry:
-        muon_hits = safe_get_collection_hits(ctx, "muon_tracker_hits")
+        muon_hits = get_collection_hits(ctx, "muon_tracker_hits")
         data_registry["muon_system_hits_per_event"].append(len(muon_hits))
 
 
 def process_drift_chamber_dndx(ctx: EventContext, data_registry: dict) -> None:
-    """Extracts drift chamber dN/dx cluster count distribution (Poisson distributed)."""
+    """TODO"""
     if "dch_dndx_value" not in data_registry:
         return
 
-    dndx_hits = safe_get_collection_hits(ctx, "dch_dndx")
+    dndx_hits = get_collection_hits(ctx, "dch_dndx")
 
     for item in dndx_hits:
-        val = item.getDQdx().value
-        # Filter out uncalculated / failed track sentinel values (-999.0)
+        val = item.getNCluster()
         if val > 0:
             data_registry["dch_dndx_value"].append(float(val))
 
@@ -149,11 +122,11 @@ def process_tracking_performance(ctx: EventContext, data_registry: dict) -> None
 
 def process_dual_readout_calorimetry(ctx: EventContext, data_registry: dict) -> None:
     """Computes Cherenkov and Scintillation energy linearities."""
-    c_hits = safe_get_collection_hits(ctx, "calo_cherenkov")
-    s_hits = safe_get_collection_hits(ctx, "calo_scintillation")
+    c_hits = get_collection_hits(ctx, "calo_cherenkov")
+    s_hits = get_collection_hits(ctx, "calo_scintillation")
 
-    e_c = sum(get_hit_energy(h) for h in c_hits)
-    e_s = sum(get_hit_energy(h) for h in s_hits)
+    e_c = sum(h.getEnergy() for h in c_hits)
+    e_s = sum(h.getEnergy() for h in s_hits)
 
     if ctx.true_mc_energy > 0:
         if "calorimeter_linearity_cherenkov" in data_registry:
@@ -168,7 +141,7 @@ def process_dual_readout_calorimetry(ctx: EventContext, data_registry: dict) -> 
 
 def process_topoclusters(ctx: EventContext, data_registry: dict) -> None:
     """Calculates topocluster count, leading energy, and angular resolution (Delta phi, Delta theta)."""
-    topos = safe_get_collection_hits(ctx, "topoclusters")
+    topos = get_collection_hits(ctx, "topoclusters")
 
     if "topocluster_count" in data_registry:
         data_registry["topocluster_count"].append(len(topos))

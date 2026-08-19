@@ -228,12 +228,14 @@ def clear_directory(directory_path):
         raise
 
 
-def get_collection_hits(event_data, collections_cfg, key):
+def get_collection_hits(ctx, key):
     """Retrieves objects from single or multiple collection names."""
+    collections_cfg = ctx.config.get("collections", {})
+
     col_names = collections_cfg.get(key, [])
     if isinstance(col_names, str):
         col_names = [col_names]
     hits = []
     for col_name in col_names:
-        hits.extend(event_data.get(col_name) or [])
+        hits.extend(ctx.event_data.get(col_name) or [])
     return hits
