@@ -1,15 +1,43 @@
-### LaTeX ###
-## Core latex/pdflatex auxiliary files:
-*.aux
-*.lof
+# Data, Plots & Generated Outputs
+/data/
+/plots/
+/logs/
+/output/
+/www/
+
+# Python & Cache Files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Testing & Linting
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editor & IDE Configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS Junk
+.DS_Store
+Thumbs.db
+
+# Local Environment & Logs
 *.log
-*.lot
-*.fls
-*.out
-*.toc
-*.fmt
-*.fot
-*.cb
-*.cb2
-.*.lb
-*.pdf
+.env
+/.sys*/
+/.gitlab-ci-local/

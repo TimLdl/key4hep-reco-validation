@@ -1,0 +1,17 @@
+site_title: "key4hep Reconstruction Validation"
+organization: "CERN / FCC Collaboration"
+footer_text: "key4hep Reconstruction Validation"
+
+# Optional display name and description overrides per detector variant.
+# Detector variants are auto-discovered from config/<DETECTOR>/<VARIANT>/*.yaml.
+# Only id and version are used for matching; all other fields are optional overrides.
+detectors:
+  - id: "IDEA"
+    version: "IDEA_o1_v03"
+    name: "IDEA Detector"
+    description: "Innovative Detector for Electron-Positron Accelerator"
+
+  - id: "ALLEGRO"
+    version: "ALLEGRO_o1_v03"
+    name: "ALLEGRO Detector"
+    description: "A Lepton Lepton collider Experiment with Granular Read-Out"

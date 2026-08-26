@@ -1,0 +1,151 @@
+detector: "ALLEGRO"
+version: "ALLEGRO_o1_v03"
+validation: "muon"
+simulation:
+  particle: "mu-"
+  output_tag: "mu"
+  energy: "10*GeV"
+
+
+detector_parameters:
+  magnetic_field_tesla: 2.0
+  sigma_multiplier: 3.0
+
+subdetectors:
+  drift_chamber:
+    max_pseudorapidity: 0.88
+    total_layers: 112
+    superlayer_bit_name: "superlayer"
+    layer_bit_name: "layer"
+    bitfield_string: "system:5,side:-2,module:8,sensor:8,superlayer:6,layer:8"
+
+collections:
+  mc_particles: "MCParticles"
+  track_collections:
+    - "FittedTracks"
+    - "FittedTracksWithFilteredHits"
+  track_mc_assoc: "TracksFromGenParticlesAssociation"
+  dch_digis: "DCHDigis"
+  dch_dndx: "DCHdNdxCollection"
+  vtx_digis:
+    - "VTXBDigis"
+    - "VTXDDigis"
+  si_wrapper_digis:
+    - "SiWrBDigis"
+    - "SiWrDDigis"
+
+plots:
+  - key: "vtx_digi_hits_per_event"
+    title: "Vertex Detector Hits per Event"
+    x_title: "Vertex Detector Hits per Event"
+    type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 50.0
+    per_collection: false
+    system: "vertex"
+    apply_eta_cut: true
+
+  - key: "dch_total_hits"
+    title: "Drift Chamber Total Hits per Event"
+    x_title: "Total DCH Hits"
+    type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 200.0
+    per_collection: false
+    system: "tracking"
+    apply_eta_cut: true
+
+  - key: "siwr_digi_hits_per_event"
+    title: "Silicon Wrapper Hits per Event"
+    x_title: "Silicon Wrapper Hits per Event"
+    type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 50.0
+    per_collection: false
+    system: "tracking"
+    apply_eta_cut: true
+
+  - key: "drift_chamber_hits_per_layer"
+    title: "Drift Chamber Hits per Layer"
+    x_title: "Number of Hits per Layer"
+    type: "integer"
+    bins: 50
+    xmin: 0.0
+    xmax: 10.0
+    per_collection: false
+    system: "tracking"
+    apply_eta_cut: true
+
+  - key: "dch_dndx_value"
+    title: "Drift Chamber dN/dx Measurement"
+    x_title: "Drift Chamber dN/dx Measurement"
+    type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 5.0
+    per_collection: false
+    system: "tracking"
+    apply_eta_cut: false
+
+  - key: "tracker_hits_per_track"
+    title: "Tracker Hits per Track"
+    x_title: "Number of Tracker Hits per Track"
+    type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 125.0
+    per_collection: true
+    system: "tracking"
+    apply_eta_cut: true
+
+  - key: "reconstructed_tracks_per_event"
+    title: "Reconstructed Tracks per Event"
+    x_title: "Reconstructed Tracks per Event"
+    type: "integer"
+    bins: 10
+    xmin: 0.0
+    xmax: 5.0
+    per_collection: true
+    system: "tracking"
+    apply_eta_cut: false
+
+  - key: "track_fit_chi2_over_ndf"
+    title: "Track Fit Quality #chi^{2} / ndf"
+    x_title: "#chi^{2} / ndf"
+    type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 10.0
+    per_collection: true
+    system: "tracking"
+    apply_eta_cut: false
+
+  - key: "momentum_resolution"
+    title: "Momentum Resolution (p_{reco} - p_{true}) / p_{true}"
+    x_title: "(p_{reco} - p_{true}) / p_{true}"
+    type: "symmetric"
+    bins: 10
+    xmin: -0.25
+    xmax: 0.25
+    per_collection: true
+    system: "tracking"
+    apply_eta_cut: false
+
+  - key: "track_impact_parameter_d0"
+    title: "Transverse Impact Parameter d_{0} [mm]"
+    x_title: "Transverse Impact Parameter d_{0} [mm]"
+    type: "symmetric"
+    bins: 10
+    xmin: -1.0
+    xmax: 1.0
+    per_collection: true
+    system: "tracking"
+    apply_eta_cut: false
+
+processors:
+  - "detectors.ALLEGRO.ALLEGRO_o1_v03.processors.process_silicon_occupancy"
+  - "detectors.ALLEGRO.ALLEGRO_o1_v03.processors.process_drift_chamber"
+  - "detectors.ALLEGRO.ALLEGRO_o1_v03.processors.process_track_reconstruction"

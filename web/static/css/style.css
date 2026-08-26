@@ -1,0 +1,524 @@
+:root {
+    /* Primary Brand Colors */
+    --color-deep-blue: #0F124A;
+    --color-radiant-blue: #0000FF;
+    --color-flash: #EDFD5D;
+
+    /* Secondary Brand Colors (Used Sparsely) */
+    --color-space: #BEE6F3;
+    --color-energy: #903DFD;
+    --color-earth: #9C826D;
+    --color-eco: #778700;
+
+    /* Interface System Mappings - Core Focus on Deep Blue, Radiant Blue, & Flash */
+    --bg-page: #FFFFFF;
+    --bg-card: #FFFFFF;
+    --text-dark: var(--color-deep-blue);
+    --text-muted: var(--color-radiant-blue);
+    --border-light: var(--color-space);
+
+    /* Typography Stack */
+    --font-family: 'Roobert', Arial, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-page);
+    color: var(--text-dark);
+    line-height: 1.6;
+}
+
+/* Header & Navbar */
+.navbar {
+    background-color: var(--color-deep-blue);
+    color: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 6px -1px rgba(15, 18, 74, 0.15);
+    position: relative;
+    z-index: 100;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: white;
+    font-weight: 700;
+    font-size: 1.25rem;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    min-width: 36px;
+    width: auto;
+}
+
+.navbar-logo {
+    height: 36px;
+    width: auto;
+    max-height: 36px;
+    object-fit: contain;
+    display: block;
+}
+
+.navbar-logo-fallback {
+    height: 36px;
+    width: 36px;
+}
+
+.navbar-title-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.navbar-title {
+    font-weight: 700;
+    font-size: 1.15rem;
+    line-height: 1.2;
+}
+
+.navbar-org-tag {
+    font-size: 0.72rem;
+    color: var(--color-flash);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+}
+
+.navbar-nav {
+    display: flex;
+    list-style: none;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.navbar-nav a {
+    color: var(--color-space);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.25rem 0;
+    transition: color 0.2s ease, border-bottom 0.2s ease;
+}
+
+.navbar-nav a:hover {
+    color: var(--color-flash);
+}
+
+.navbar-nav a.active {
+    color: var(--color-flash);
+    font-weight: 700;
+    border-bottom: 2px solid var(--color-flash);
+}
+
+/* Container */
+.container {
+    max-width: 1280px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+}
+
+/* Hero Banner */
+.hero-banner {
+    background-color: var(--color-deep-blue);
+    color: white;
+    padding: 2.5rem 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    border: 1px solid var(--color-radiant-blue);
+}
+
+.hero-banner h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.hero-banner p {
+    color: var(--color-space);
+    font-size: 1.05rem;
+}
+
+.hero-header-line {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.hero-meta {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--color-space);
+}
+
+.hero-meta code {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    color: var(--color-flash);
+}
+
+/* Section Headings */
+.section-heading {
+    color: var(--color-deep-blue);
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Particle Event Tabs Sub-Navigation */
+.particle-tabs {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border-light);
+    padding-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.tab-item {
+    padding: 0.6rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    border-radius: 6px;
+    color: var(--color-deep-blue);
+    background-color: white;
+    border: 1px solid var(--border-light);
+    transition: all 0.2s ease;
+}
+
+.tab-item:hover {
+    background-color: var(--color-space);
+}
+
+.tab-item.active {
+    background-color: var(--color-deep-blue);
+    color: white;
+    border-color: var(--color-deep-blue);
+}
+
+/* Sticky Quick-Jump Navigation Bar */
+.toc-jump-bar {
+    position: sticky;
+    top: 1rem;
+    z-index: 90;
+    background-color: var(--color-deep-blue);
+    border: 1px solid var(--color-radiant-blue);
+    padding: 0.65rem 1.25rem;
+    margin-bottom: 2rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 4px 12px rgba(15, 18, 74, 0.15);
+}
+
+.toc-label {
+    color: var(--color-flash);
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.toc-links {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 2px;
+}
+
+.toc-pill {
+    text-decoration: none;
+    font-size: 0.82rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.toc-pill-subdet {
+    background-color: var(--color-flash);
+    color: var(--color-deep-blue);
+    font-weight: 700;
+    border: 1px solid var(--color-flash);
+}
+
+.toc-pill-subdet:hover {
+    background-color: white;
+    color: var(--color-deep-blue);
+    border-color: white;
+}
+
+.toc-pill-algo {
+    background-color: transparent;
+    color: var(--color-space);
+    border: 1px solid var(--color-radiant-blue);
+}
+
+.toc-pill-algo:hover {
+    background-color: var(--color-radiant-blue);
+    color: white;
+}
+
+/* Grouping Hierarchy Sections */
+.subdetector-section {
+    margin-bottom: 3rem;
+    background: white;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(15, 18, 74, 0.05);
+}
+
+.subdetector-header {
+    color: var(--color-deep-blue);
+    font-size: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 3px solid var(--color-radiant-blue);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.subdet-prefix {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-radiant-blue);
+}
+
+.algorithm-block {
+    margin-bottom: 2rem;
+    padding-left: 0.5rem;
+}
+
+.algorithm-header {
+    color: var(--color-radiant-blue);
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.module-block {
+    margin-bottom: 1.5rem;
+}
+
+.module-header {
+    color: var(--color-deep-blue);
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+}
+
+.section-anchor {
+    color: var(--color-radiant-blue);
+    text-decoration: none;
+    font-size: 0.8em;
+    margin-left: 0.5rem;
+    transition: color 0.2s ease;
+}
+
+.subdetector-header:hover .section-anchor,
+.algorithm-header:hover .section-anchor {
+    color: var(--color-flash);
+}
+
+/* Plot Grid & Cards */
+.grid-plots {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.25rem;
+}
+
+.plot-card {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(15, 18, 74, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.plot-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(15, 18, 74, 0.12);
+    border-color: var(--color-radiant-blue);
+}
+
+.plot-card-header {
+    background-color: var(--color-space);
+    padding: 0.6rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-deep-blue);
+}
+
+.plot-card-body {
+    padding: 0.85rem;
+    text-align: center;
+}
+
+.plot-card-body img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.plot-card-body img:hover {
+    opacity: 0.95;
+}
+
+/* Badges */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 4px;
+}
+
+.badge-radiant {
+    background-color: var(--color-radiant-blue);
+    color: white;
+}
+
+.badge-flash {
+    background-color: var(--color-flash);
+    color: var(--color-deep-blue);
+}
+
+/* General Layout Elements & Detector Cards */
+.grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-top: 4px solid var(--color-deep-blue);
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.detector-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.detector-desc {
+    color: var(--text-dark);
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+}
+
+.detector-meta {
+    background-color: var(--color-space);
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.meta-label {
+    font-weight: 700;
+    color: var(--color-deep-blue);
+}
+
+.config-code {
+    font-family: monospace;
+    color: var(--color-radiant-blue);
+    word-break: break-all;
+}
+
+.detector-card-footer {
+    margin-top: auto;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.btn-primary {
+    background-color: var(--color-radiant-blue);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--color-deep-blue);
+}
+
+/* Footer */
+.footer {
+    background-color: var(--color-deep-blue);
+    color: var(--color-space);
+    text-align: center;
+    padding: 1.5rem;
+    margin-top: 4rem;
+    font-size: 0.85rem;
+}
+
+.footer-subtext {
+    font-size: 0.78rem;
+    color: var(--color-space);
+    margin-top: 0.25rem;
+    opacity: 0.85;
+}
+
+/* Modal Lightbox */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 18, 74, 0.85);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal img {
+    max-width: 90%;
+    max-height: 90vh;
+    border-radius: 8px;
+}

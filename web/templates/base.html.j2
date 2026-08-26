@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ config.site_title }} | {{ config.organization }}</title>
+  <link rel="stylesheet" href="{{ root_rel }}static/css/style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <nav class="navbar">
+    <a href="{{ root_rel }}index.html" class="navbar-brand">
+      <div class="logo-container">
+        <img src="{{ root_rel }}static/img/FCC-Circle_Main_RGB_White.png" 
+             alt="FCC Logo" 
+             class="navbar-logo"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+        <svg class="navbar-logo-fallback" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:none;">
+          <circle cx="18" cy="18" r="16" stroke="#EDFD5D" stroke-width="3" fill="#0000FF"/>
+          <circle cx="18" cy="18" r="9" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="3 2"/>
+          <circle cx="18" cy="18" r="3" fill="#EDFD5D"/>
+        </svg>
+      </div>
+      <div class="navbar-title-group">
+        <span class="navbar-title">{{ config.site_title }}</span>
+        {% if config.organization %}
+        <span class="navbar-org-tag">{{ config.organization }}</span>
+        {% endif %}
+      </div>
+    </a>
+    <ul class="navbar-nav">
+      <li>
+        <a href="{{ root_rel }}index.html" class="{% if active_page == 'overview' %}active{% endif %}">
+          Overview
+        </a>
+      </li>
+      {% for det in detectors %}
+      <li>
+        <a href="{{ root_rel }}detectors/{{ det.slug }}/index.html" 
+           class="{% if (detector and detector.slug == det.slug) or active_page == det.slug %}active{% endif %}">
+          {{ det.version }}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </nav>
+
+  <!-- Page Main Content Block -->
+  <main class="container">
+    {% block content %}
+    <!-- Content from child templates is inserted here -->
+    {% endblock %}
+  </main>
+
+  <footer class="footer">
+    <p>{{ config.organization | default("Key4hep Collaboration") }}</p>
+    {% if config.footer_text %}
+    <p class="footer-subtext">{{ config.footer_text }}</p>
+    {% endif %}
+  </footer>
+
+</body>
+</html>

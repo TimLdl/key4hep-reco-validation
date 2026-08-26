@@ -1,0 +1,194 @@
+variables:
+    VERSIONS:
+        value: ""
+        description: Optional comma-separated detector variants to run. Leave empty to auto-discover all implemented variants from config/.
+    MAKE_REFERENCE_SAMPLE:
+        value: "no"
+        description: Whether to only make a reference sample for later use
+    WORKAREA:
+        value: "$CI_PROJECT_DIR/validation"
+        description: Where to run the validation on the runner
+    PLOTAREA:
+        value: "plots"
+        description: Where to store the plots and information for the validation website
+    REFERENCE_SAMPLE:
+        value: "references"
+        description: Where to find the reference sample
+    NUMBER_OF_EVENTS:
+        value: "100"
+        description: How many events to run on
+    TAG:
+        value: ""
+        description: Which tag to use for the release
+    EMAIL_ADDRESSES:
+        value: "tim.leidel@cern.ch"
+        description: Email addresses to send status emails to (separated by comma)
+    STEERING_FILE_REPO:
+        value: "https://github.com/HEP-FCC/FCC-config.git"
+        description: Web URL of the steering file repository to clone
+    STEERING_FILE_BRANCH:
+        value: "main"
+        description: Branch of the FCC-config repository to clone
+    CI_OUTPUT_DIR:
+        value: "$WORKAREA/$PLOTAREA"
+        description: Path to the web page files
+    USE_DYNAMIC_SHARDS:
+        value: "true"
+        description: Use a generated child pipeline with one DAG chain per discovered validation workflow.
+    MAX_DYNAMIC_SHARDS:
+        value: "0"
+        description: Optional cap for dynamic workflow chains (0 means no cap).
+
+stages:
+    - setup
+    - simulation
+    - validation
+    - plot
+    - web
+    - deploy
+    - cleanup
+
+# --- Global Blueprint Templates ---
+.template-job:
+    image: gitlab-registry.cern.ch/key4hep/k4-deploy/alma9-build
+    tags:
+        - validation
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    before_script:
+        - export WORKAREA="${WORKAREA:-${CI_PROJECT_DIR}/validation}"
+
+# --- Pipeline Stages ---
+setup:
+    extends: .template-job
+    stage: setup
+    when: always
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+          when: never
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    script:
+        - bash scripts/k4_reco_val_pipeline_utils/setup.sh
+    artifacts:
+        when: always
+        paths:
+            - validation/
+
+generate_dynamic_pipeline:
+    extends: .template-job
+    stage: setup
+    when: always
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+    script:
+        - python3 scripts/k4_reco_val_pipeline_utils/generate_dynamic_pipeline.py --repo-root "$CI_PROJECT_DIR" --versions "${VERSIONS:-}" --max-shards "${MAX_DYNAMIC_SHARDS:-0}" --output "$CI_PROJECT_DIR/dynamic-child-pipeline.yml"
+    artifacts:
+        when: always
+        paths:
+            - dynamic-child-pipeline.yml
+
+run_dynamic_pipeline:
+    stage: simulation
+    when: always
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+    trigger:
+        include:
+            - artifact: dynamic-child-pipeline.yml
+              job: generate_dynamic_pipeline
+        strategy: depend
+
+simulation:
+    extends: .template-job
+    stage: simulation
+    when: always
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+          when: never
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    parallel: 4
+    script:
+        - bash scripts/k4_reco_val_pipeline_utils/simulation.sh
+    artifacts:
+        when: always
+        paths:
+            - validation/
+
+validation:
+    extends: .template-job
+    stage: validation
+    when: always
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+          when: never
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    parallel: 4
+    script:
+        - bash scripts/k4_reco_val_pipeline_utils/validation.sh
+    artifacts:
+        when: always
+        paths:
+            - validation/
+
+plot:
+    extends: .template-job
+    stage: plot
+    when: always
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+          when: never
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+          when: on_success
+        - if: '$MAKE_REFERENCE_SAMPLE == "yes"'
+          when: never
+    parallel: 4
+    script:
+        - bash scripts/k4_reco_val_pipeline_utils/plot.sh
+    artifacts:
+        when: always
+        paths:
+            - validation/
+
+web:
+    extends: .template-job
+    stage: web
+    when: on_success
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+          when: never
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+          when: on_success
+        - if: '$MAKE_REFERENCE_SAMPLE == "yes"'
+          when: never
+    script:
+        - bash scripts/k4_reco_val_pipeline_utils/web.sh
+    artifacts:
+        when: always
+        paths:
+            - validation/
+
+deployment:
+    extends: .template-job
+    image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer
+    when: on_success
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+          when: never
+        - if: '$MAKE_REFERENCE_SAMPLE == "yes"'
+          when: never
+    stage: deploy
+    script:
+        - deploy-eos
+    before_script: []
+    after_script: []
+
+cleanup:
+    extends: .template-job
+    stage: cleanup
+    when: always
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+          when: never
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    script:
+        - bash scripts/k4_reco_val_pipeline_utils/cleanup.sh

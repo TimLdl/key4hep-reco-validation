@@ -1,0 +1,90 @@
+{% extends "base.html.j2" %}
+
+{% block content %}
+<section class="hero-banner">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+    <div>
+      <h1>{{ detector.name }} - {{ detector.version }} - {{ current_particle.name }} Performance</h1>
+      <p>Targeted event validation for {{ current_particle.name }} events ({{ detector.version }}).</p>
+    </div>
+    <span class="badge badge-flash" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;">
+      {{ detector.version }}
+    </span>
+  </div>
+</section>
+
+<!-- Sub-navigation tabs across particles -->
+{% include "components/particle_nav.html.j2" %}
+
+{% if tree and tree.items()|length > 0 %}
+
+<!-- Sticky Subdetector & Module Quick-Jump Table of Contents -->
+<nav class="toc-jump-bar">
+  <span class="toc-label">Quick Jump:</span>
+  <div class="toc-links">
+    {% for subdetector_name, algo_dict in tree.items() %}
+      {% set subdet_id = "subdet-" ~ subdetector_name.lower().replace(' ', '-') %}
+      <a href="#{{ subdet_id }}" class="toc-pill toc-pill-subdet">
+        {{ subdetector_name }}
+      </a>
+      {% for algo_name, module_dict in algo_dict.items() %}
+        {% set algo_id = subdet_id ~ "-algo-" ~ algo_name.lower().replace(' ', '-') %}
+        <a href="#{{ algo_id }}" class="toc-pill toc-pill-algo">
+          ↳ {{ algo_name }}
+        </a>
+      {% endfor %}
+    {% endfor %}
+  </div>
+</nav>
+
+<!-- Grouped Plots Hierarchy -->
+<div class="dashboard-sections">
+  {% for subdetector_name, algo_dict in tree.items() %}
+    {% set subdet_id = "subdet-" ~ subdetector_name.lower().replace(' ', '-') %}
+    <section class="subdetector-section" id="{{ subdet_id }}">
+      <h2 class="subdetector-header">
+        <span class="subdet-prefix">Subdetector:</span> {{ subdetector_name }}
+        <a href="#{{ subdet_id }}" class="section-anchor">#</a>
+      </h2>
+
+      {% for algo_name, module_dict in algo_dict.items() %}
+        {% set algo_id = subdet_id ~ "-algo-" ~ algo_name.lower().replace(' ', '-') %}
+        <div class="algorithm-block" id="{{ algo_id }}">
+          <h3 class="algorithm-header">
+            Algorithm / Method: {{ algo_name }}
+            <a href="#{{ algo_id }}" class="section-anchor">#</a>
+          </h3>
+
+          {% for module_name, plot_list in module_dict.items() %}
+            {% set mod_id = algo_id ~ "-mod-" ~ module_name.lower().replace(' ', '-') %}
+            <div class="module-block" id="{{ mod_id }}">
+              {% if module_name != "General" %}
+              <h4 class="module-header">Module / Region: {{ module_name }}</h4>
+              {% endif %}
+
+              <div class="grid-plots">
+                {% for plot in plot_list %}
+                <div class="plot-card">
+                  <div class="plot-card-header">{{ plot.title }}</div>
+                  <div class="plot-card-body">
+                    <img src="{{ plot.web_path }}" alt="{{ plot.title }}" loading="lazy">
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </section>
+  {% endfor %}
+</div>
+
+{% else %}
+  <div class="card" style="text-align: center; color: var(--text-muted); padding: 3rem 1.5rem; margin-top: 2rem;">
+    <h3 style="color: var(--color-deep-blue); margin-bottom: 0.5rem;">No Plots Available</h3>
+    <p>No validation plot PNGs were discovered for <strong>{{ current_particle.name }}</strong>.</p>
+  </div>
+{% endif %}
+
+{% endblock %}
