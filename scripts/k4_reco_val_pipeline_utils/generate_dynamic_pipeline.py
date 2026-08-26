@@ -9,6 +9,24 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+
+# GitLab CI rule `if` expressions must be single-quoted in YAML so that the
+# dollar sign and embedded double-quotes are preserved literally.
+class _SingleQuoted(str):
+    pass
+
+
+def _single_quoted_representer(dumper: yaml.Dumper, value: "_SingleQuoted") -> yaml.ScalarNode:
+    return dumper.represent_scalar("tag:yaml.org,2002:str", value, style="'")
+
+
+yaml.add_representer(_SingleQuoted, _single_quoted_representer)
+yaml.add_representer(  # also register for SafeDumper used by safe_dump
+    _SingleQuoted,
+    _single_quoted_representer,
+    Dumper=yaml.SafeDumper,
+)
+
 from config_discovery import discover_validation_flows
 
 
@@ -44,6 +62,14 @@ def stage_job_template() -> dict:
     }
 
 
+def stage_job_base() -> dict:
+    """Common fields inlined into every concrete job for reliable runner matching."""
+    return {
+        "image": "gitlab-registry.cern.ch/key4hep/k4-deploy/alma9-build",
+        "tags": ["validation"],
+    }
+
+
 def stage_job_script(script_name: str) -> list[str]:
     return [f"bash scripts/k4_reco_val_pipeline_utils/{script_name}"]
 
@@ -57,6 +83,7 @@ def build_child_pipeline(chain_count: int) -> dict:
         "stages": ["setup", "simulation", "validation", "plot", "gate", "web", "cleanup"],
         ".template-job": stage_job_template(),
         "setup": {
+            **stage_job_base(),
             "extends": ".template-job",
             "stage": "setup",
             "when": "always",
@@ -81,6 +108,7 @@ def build_child_pipeline(chain_count: int) -> dict:
         }
 
         pipeline[sim_job] = {
+            **stage_job_base(),
             "extends": ".template-job",
             "stage": "simulation",
             "needs": [{"job": "setup", "artifacts": True}],
@@ -89,6 +117,7 @@ def build_child_pipeline(chain_count: int) -> dict:
             "artifacts": artifact_def(),
         }
         pipeline[val_job] = {
+            **stage_job_base(),
             "extends": ".template-job",
             "stage": "validation",
             "needs": [{"job": sim_job, "artifacts": True}],
@@ -97,12 +126,13 @@ def build_child_pipeline(chain_count: int) -> dict:
             "artifacts": artifact_def(),
         }
         pipeline[plot_job] = {
+            **stage_job_base(),
             "extends": ".template-job",
             "stage": "plot",
             "needs": [{"job": val_job, "artifacts": True}],
             "variables": dict(shard_vars),
             "rules": [
-                {"if": '$MAKE_REFERENCE_SAMPLE == "yes"', "when": "never"},
+                {"if": _SingleQuoted('$MAKE_REFERENCE_SAMPLE == "yes"'), "when": "never"},
                 {"when": "on_success"},
             ],
             "script": stage_job_script("plot.sh"),
@@ -111,10 +141,11 @@ def build_child_pipeline(chain_count: int) -> dict:
 
     web_needs = [{"job": job_name, "artifacts": True} for job_name in plot_jobs]
     pipeline["workflow-gate"] = {
+        **stage_job_base(),
         "extends": ".template-job",
         "stage": "gate",
         "rules": [
-            {"if": '$MAKE_REFERENCE_SAMPLE == "yes"', "when": "never"},
+            {"if": _SingleQuoted('$MAKE_REFERENCE_SAMPLE == "yes"'), "when": "never"},
             {"when": "on_success"},
         ],
         "needs": web_needs,
@@ -122,11 +153,12 @@ def build_child_pipeline(chain_count: int) -> dict:
         "artifacts": artifact_def(),
     }
     pipeline["web"] = {
+        **stage_job_base(),
         "extends": ".template-job",
         "stage": "web",
         "when": "on_success",
         "rules": [
-            {"if": '$MAKE_REFERENCE_SAMPLE == "yes"', "when": "never"},
+            {"if": _SingleQuoted('$MAKE_REFERENCE_SAMPLE == "yes"'), "when": "never"},
             {"when": "on_success"},
         ],
         "needs": [{"job": "workflow-gate", "artifacts": True}],
@@ -134,6 +166,7 @@ def build_child_pipeline(chain_count: int) -> dict:
         "artifacts": artifact_def(),
     }
     pipeline["cleanup"] = {
+        **stage_job_base(),
         "extends": ".template-job",
         "stage": "cleanup",
         "when": "always",

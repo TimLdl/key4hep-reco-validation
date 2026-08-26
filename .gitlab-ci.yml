@@ -81,6 +81,7 @@ generate_dynamic_pipeline:
     rules:
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
     script:
+        - source scripts/k4_reco_val_pipeline_utils/utils.sh
         - python3 scripts/k4_reco_val_pipeline_utils/generate_dynamic_pipeline.py --repo-root "$CI_PROJECT_DIR" --versions "${VERSIONS:-}" --max-shards "${MAX_DYNAMIC_SHARDS:-0}" --output "$CI_PROJECT_DIR/dynamic-child-pipeline.yml"
     artifacts:
         when: always
