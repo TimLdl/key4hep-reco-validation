@@ -87,6 +87,7 @@ def build_child_pipeline(chain_count: int) -> dict:
             "extends": ".template-job",
             "stage": "setup",
             "when": "always",
+            "rules": [{"when": "always"}],
             "script": stage_job_script("setup.sh"),
             "artifacts": artifact_def(),
         },
@@ -111,6 +112,7 @@ def build_child_pipeline(chain_count: int) -> dict:
             **stage_job_base(),
             "extends": ".template-job",
             "stage": "simulation",
+            "rules": [{"when": "on_success"}],
             "needs": [{"job": "setup", "artifacts": True}],
             "variables": dict(shard_vars),
             "script": stage_job_script("simulation.sh"),
@@ -120,6 +122,7 @@ def build_child_pipeline(chain_count: int) -> dict:
             **stage_job_base(),
             "extends": ".template-job",
             "stage": "validation",
+            "rules": [{"when": "on_success"}],
             "needs": [{"job": sim_job, "artifacts": True}],
             "variables": dict(shard_vars),
             "script": stage_job_script("validation.sh"),
@@ -170,6 +173,7 @@ def build_child_pipeline(chain_count: int) -> dict:
         "extends": ".template-job",
         "stage": "cleanup",
         "when": "always",
+        "rules": [{"when": "always"}],
         "script": stage_job_script("cleanup.sh"),
     }
     return pipeline
