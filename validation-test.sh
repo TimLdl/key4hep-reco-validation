@@ -73,7 +73,7 @@ log_info "Found ${flow_count} validation flow(s)."
 
 FAIL=0
 
-while IFS=$'\t' read -r detector version slug validation config_path config_dir config_rel_dir particle output_tag energy seed sim_script hist_script; do
+while IFS=$'\t' read -r detector version _ validation config_path _ _ _ output_tag _ _ _ hist_script; do
     [[ -z "$detector" ]] && continue
 
     digi_file="$DATA_DIR/$detector/$version/${detector}_${output_tag}_particleGun_digi.root"

@@ -8,7 +8,7 @@ This repository runs detector validation workflows end-to-end:
 4. static website build.
 
 The most important concept is: **the pipeline is config-driven**.  
-What runs is discovered from [`config/`](/eos/home-t/tleidel/key4hep-reco-validation/config), not hardcoded in CI jobs.
+What runs is discovered from [`config/`](config), not hardcoded in CI jobs.
 
 ---
 
@@ -22,20 +22,22 @@ config/<DETECTOR>/<VARIANT>/*.yaml
 
 is treated as one validation workflow (typically one particle flow such as `electron` or `muon`).
 
-At runtime, [`setup.sh`](/eos/home-t/tleidel/key4hep-reco-validation/scripts/k4_reco_val_pipeline_utils/setup.sh) calls [`config_discovery.py`](/eos/home-t/tleidel/key4hep-reco-validation/scripts/k4_reco_val_pipeline_utils/config_discovery.py), which:
+At runtime, [`setup.sh`](scripts/k4_reco_val_pipeline_utils/setup.sh) calls [`config_discovery.py`](scripts/k4_reco_val_pipeline_utils/config_discovery.py), which:
 
 - discovers all workflows,
 - validates required scripts exist,
 - writes `validation_flows.tsv`,
 - generates `generated_web.yaml` for the web stage.
 
-If `USE_DYNAMIC_SHARDS=true` (default in CI), the pipeline generates one DAG chain per workflow:
+If `USE_DYNAMIC_SHARDS=true` (default in CI), the pipeline generates one DAG chain per workflow (or up to `MAX_DYNAMIC_SHARDS` chains when capped):
 
 ```text
 setup -> (sim_i -> val_i -> plot_i)* -> workflow_gate -> web -> cleanup
 ```
 
 So adding config files directly increases discovered workflows and parallel chains.
+With `USE_DYNAMIC_SHARDS=false`, the same stages run through four static shards;
+the workflow gate still prevents an empty website from being built or deployed.
 
 ---
 
@@ -50,14 +52,14 @@ scripts/detectors/XDET/XDET_o1_v01/hist.py
 scripts/detectors/XDET/XDET_o1_v01/processors.py
 ```
 
-If `sim_digi.sh` or `hist.py` is missing, discovery fails early.
+If a required script, processor reference, plot definition, or directory identity is invalid, discovery fails early.
 
 Use existing implementations as templates:
 
-- [`config/ALLEGRO/ALLEGRO_o1_v03/electron.yaml`](/eos/home-t/tleidel/key4hep-reco-validation/config/ALLEGRO/ALLEGRO_o1_v03/electron.yaml)
-- [`scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/sim_digi.sh`](/eos/home-t/tleidel/key4hep-reco-validation/scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/sim_digi.sh)
-- [`scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/hist.py`](/eos/home-t/tleidel/key4hep-reco-validation/scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/hist.py)
-- [`scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/processors.py`](/eos/home-t/tleidel/key4hep-reco-validation/scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/processors.py)
+- [`config/ALLEGRO/ALLEGRO_o1_v03/electron.yaml`](config/ALLEGRO/ALLEGRO_o1_v03/electron.yaml)
+- [`scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/sim_digi.sh`](scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/sim_digi.sh)
+- [`scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/hist.py`](scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/hist.py)
+- [`scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/processors.py`](scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/processors.py)
 
 ---
 
@@ -77,7 +79,7 @@ Example: add detector family `XDET`.
    - `hist.py` (usually thin wrapper around shared runner)
    - `processors.py`
 
-Optional: add display metadata in [`config/web.yaml`](/eos/home-t/tleidel/key4hep-reco-validation/config/web.yaml) (`id`, `version`, `name`, `description`).
+Optional: add display metadata in [`config/web.yaml`](config/web.yaml) (`id`, `version`, `name`, `description`).
 
 ---
 
@@ -128,7 +130,7 @@ Also define:
 - `plots` entries to be rendered,
 - `processors` list (Python import paths).
 
-Reference schema/documentation: [`config/README.md`](/eos/home-t/tleidel/key4hep-reco-validation/config/README.md)
+Reference schema/documentation: [`config/README.md`](config/README.md)
 
 ---
 
@@ -149,7 +151,7 @@ Each plot entry includes at least:
 - `system` (used for web grouping)
 - `apply_eta_cut` (bool)
 
-See concrete examples in [`electron.yaml`](/eos/home-t/tleidel/key4hep-reco-validation/config/ALLEGRO/ALLEGRO_o1_v03/electron.yaml).
+See concrete examples in [`electron.yaml`](config/ALLEGRO/ALLEGRO_o1_v03/electron.yaml).
 
 ### 2) Fill the corresponding data in `processors.py`
 
@@ -158,7 +160,7 @@ If the plot key is `momentum_resolution`, your processor must append values into
 - `data_registry["momentum_resolution"]` when `per_collection: false`, or
 - `data_registry["momentum_resolution_<collection>"]` when `per_collection: true`.
 
-The shared extraction runner is [`hist_runner.py`](/eos/home-t/tleidel/key4hep-reco-validation/scripts/detectors/k4_reco_val_utils/hist_runner.py), which is invoked by each variant `hist.py`.
+The shared extraction runner is [`hist_runner.py`](scripts/detectors/k4_reco_val_utils/hist_runner.py), which is invoked by each variant `hist.py`.
 
 ### 3) Run and verify output paths
 
@@ -174,13 +176,18 @@ The website stage reads this structure directly.
 
 ## Pipeline behavior and controls
 
-Main pipeline entrypoint: [`.gitlab-ci.yml`](/eos/home-t/tleidel/key4hep-reco-validation/.gitlab-ci.yml)
+Main pipeline entrypoint: [`.gitlab-ci.yml`](.gitlab-ci.yml)
+
+GitLab jobs run for merge-request pipelines and pushes to the default branch.
+Merge requests build and validate but never publish to EOS. Default-branch pushes
+deploy the generated website after a successful child-pipeline web stage.
 
 Relevant CI variables:
 
 - `VERSIONS`: optional filter (`ALLEGRO_o1_v03` or `ALLEGRO/ALLEGRO_o1_v03`)
 - `USE_DYNAMIC_SHARDS`: `true` to generate per-workflow DAG chains
 - `MAX_DYNAMIC_SHARDS`: optional cap on discovered workflow chains
+- `CI_OUTPUT_DIR`: website output directory (defaults to `$WORKAREA/web`)
 - `MAKE_REFERENCE_SAMPLE`: `yes` to save references instead of comparison mode
 - `WORKAREA`, `PLOTAREA`, `REFERENCE_SAMPLE`: output locations
 
@@ -189,8 +196,15 @@ Notification policy:
 - one final SUCCESS mail in cleanup if no warnings/errors,
 - WARNING/ERROR mails only when stages degrade/fail.
 
+Additional module documentation:
+
+- [`config/README.md`](config/README.md)
+- [`scripts/detectors/README.md`](scripts/detectors/README.md)
+- [`scripts/detectors/k4_reco_val_utils/README.md`](scripts/detectors/k4_reco_val_utils/README.md)
+- [`scripts/web/README.md`](scripts/web/README.md)
+
 Pipeline utility scripts are documented in:
-- [`scripts/k4_reco_val_pipeline_utils/README.md`](/eos/home-t/tleidel/key4hep-reco-validation/scripts/k4_reco_val_pipeline_utils/README.md)
+- [`scripts/k4_reco_val_pipeline_utils/README.md`](scripts/k4_reco_val_pipeline_utils/README.md)
 
 ---
 
@@ -229,6 +243,5 @@ Before opening an MR, verify:
 - [ ] Matching script directory exists under `scripts/detectors/<DETECTOR>/<VARIANT>/`.
 - [ ] `simulation.particle`, `simulation.output_tag`, `simulation.energy` are set.
 - [ ] Every new plot key is actually filled by a processor.
-- [ ] `config_discovery.py` runs successfully.
+- [ ] `config_discovery.py` runs successfully, including processor and plot validation.
 - [ ] Local pipeline run reaches at least `plot` stage.
-

@@ -67,6 +67,7 @@ export STEERING_FILE_REPO="${STEERING_FILE_REPO:-https://github.com/HEP-FCC/FCC-
 export STEERING_FILE_BRANCH="${STEERING_FILE_BRANCH:-main}"
 export WORKAREA="${WORKAREA:-$HOME/local-k4-validation}"
 export PLOTAREA="${PLOTAREA:-plots}"
+export CI_OUTPUT_DIR="${CI_OUTPUT_DIR:-$WORKAREA/web}"
 export REFERENCE_SAMPLE="${REFERENCE_SAMPLE:-references}"
 export VERSIONS="${VERSIONS:-}"
 export MAKE_REFERENCE_SAMPLE="${MAKE_REFERENCE_SAMPLE:-yes}"
@@ -105,7 +106,8 @@ fi
 log_info "=================================================="
 log_info "        LOCAL GITLAB PIPELINE EXECUTION           "
 log_info "=================================================="
-log_info "Execution Chain: $(echo "${TASKS_TO_RUN[@]}" | sed 's/ / -> /g')"
+execution_chain="${TASKS_TO_RUN[*]// / -> }"
+log_info "Execution Chain: $execution_chain"
 log_info "--------------------------------------------------"
 echo "  - WORKAREA:               $WORKAREA"
 echo "  - VERSIONS FILTER:        ${VERSIONS:-[Auto-discover all]}"
@@ -149,13 +151,15 @@ run_gitlab_job() {
     log_info "STARTING TASK: $job_name"
     log_info "--------------------------------------------------"
 
-    local start_time=$(date +%s)
+    local start_time
+    start_time=$(date +%s)
     local rc=0
 
     set +e
     gitlab-ci-local --force-shell-executor \
         --variable WORKAREA="$WORKAREA" \
         --variable PLOTAREA="$PLOTAREA" \
+        --variable CI_OUTPUT_DIR="$CI_OUTPUT_DIR" \
         --variable REFERENCE_SAMPLE="$REFERENCE_SAMPLE" \
         --variable VERSIONS="$VERSIONS" \
         --variable USE_DYNAMIC_SHARDS="$USE_DYNAMIC_SHARDS" \
@@ -168,7 +172,8 @@ run_gitlab_job() {
     rc=$?
     set -e
 
-    local end_time=$(date +%s)
+    local end_time
+    end_time=$(date +%s)
     if [[ $rc -ne 0 ]]; then
         log_error "FAILED TASK: $job_name (Duration: $((end_time - start_time))s)"
         return 1

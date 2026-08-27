@@ -44,6 +44,7 @@ stages:
     - simulation
     - validation
     - plot
+    - gate
     - web
     - deploy
     - cleanup
@@ -54,7 +55,7 @@ stages:
     tags:
         - validation
     rules:
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)'
     before_script:
         - export WORKAREA="${WORKAREA:-${CI_PROJECT_DIR}/validation}"
 
@@ -64,9 +65,9 @@ setup:
     stage: setup
     when: always
     rules:
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+        - if: '($CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)) && $USE_DYNAMIC_SHARDS == "true"'
           when: never
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)'
     script:
         - bash scripts/k4_reco_val_pipeline_utils/setup.sh
     artifacts:
@@ -79,9 +80,8 @@ generate_dynamic_pipeline:
     stage: setup
     when: always
     rules:
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+        - if: '($CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)) && $USE_DYNAMIC_SHARDS == "true"'
     script:
-        - source scripts/k4_reco_val_pipeline_utils/utils.sh
         - python3 scripts/k4_reco_val_pipeline_utils/generate_dynamic_pipeline.py --repo-root "$CI_PROJECT_DIR" --versions "${VERSIONS:-}" --max-shards "${MAX_DYNAMIC_SHARDS:-0}" --output "$CI_PROJECT_DIR/dynamic-child-pipeline.yml"
     artifacts:
         when: always
@@ -92,7 +92,7 @@ run_dynamic_pipeline:
     stage: simulation
     when: always
     rules:
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+        - if: '($CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)) && $USE_DYNAMIC_SHARDS == "true"'
     trigger:
         include:
             - artifact: dynamic-child-pipeline.yml
@@ -104,9 +104,9 @@ simulation:
     stage: simulation
     when: always
     rules:
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+        - if: '($CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)) && $USE_DYNAMIC_SHARDS == "true"'
           when: never
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)'
     parallel: 4
     script:
         - bash scripts/k4_reco_val_pipeline_utils/simulation.sh
@@ -120,9 +120,9 @@ validation:
     stage: validation
     when: always
     rules:
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+        - if: '($CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)) && $USE_DYNAMIC_SHARDS == "true"'
           when: never
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)'
     parallel: 4
     script:
         - bash scripts/k4_reco_val_pipeline_utils/validation.sh
@@ -136,12 +136,12 @@ plot:
     stage: plot
     when: always
     rules:
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+        - if: '($CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)) && $USE_DYNAMIC_SHARDS == "true"'
           when: never
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-          when: on_success
         - if: '$MAKE_REFERENCE_SAMPLE == "yes"'
           when: never
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)'
+          when: on_success
     parallel: 4
     script:
         - bash scripts/k4_reco_val_pipeline_utils/plot.sh
@@ -150,17 +150,39 @@ plot:
         paths:
             - validation/
 
+workflow_gate:
+    extends: .template-job
+    stage: gate
+    rules:
+        - if: '($CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)) && $USE_DYNAMIC_SHARDS == "true"'
+          when: never
+        - if: '$MAKE_REFERENCE_SAMPLE == "yes"'
+          when: never
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)'
+          when: on_success
+    needs:
+        - job: plot
+          artifacts: true
+    script:
+        - bash scripts/k4_reco_val_pipeline_utils/workflow_gate.sh
+    artifacts:
+        when: always
+        paths:
+            - validation/
+
 web:
     extends: .template-job
     stage: web
-    when: on_success
     rules:
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+        - if: '($CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)) && $USE_DYNAMIC_SHARDS == "true"'
           when: never
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-          when: on_success
         - if: '$MAKE_REFERENCE_SAMPLE == "yes"'
           when: never
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)'
+          when: on_success
+    needs:
+        - job: workflow_gate
+          artifacts: true
     script:
         - bash scripts/k4_reco_val_pipeline_utils/web.sh
     artifacts:
@@ -169,27 +191,28 @@ web:
             - validation/
 
 deployment:
-    extends: .template-job
     image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer
-    when: on_success
+    stage: deploy
     rules:
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$USE_DYNAMIC_SHARDS == "true"'
           when: never
         - if: '$MAKE_REFERENCE_SAMPLE == "yes"'
           when: never
-    stage: deploy
+        - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+          when: on_success
+    needs:
+        - job: web
+          artifacts: true
     script:
         - deploy-eos
-    before_script: []
-    after_script: []
 
 cleanup:
     extends: .template-job
     stage: cleanup
     when: always
     rules:
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $USE_DYNAMIC_SHARDS == "true"'
+        - if: '($CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)) && $USE_DYNAMIC_SHARDS == "true"'
           when: never
-        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)'
     script:
         - bash scripts/k4_reco_val_pipeline_utils/cleanup.sh

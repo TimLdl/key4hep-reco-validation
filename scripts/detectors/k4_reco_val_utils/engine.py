@@ -15,7 +15,6 @@ Entry points:
 """
 
 import importlib
-import sys
 from typing import Callable, List, Optional
 
 import ROOT
@@ -55,9 +54,10 @@ def resolve_processors(
             mod = importlib.import_module(module_name)
             resolved.append(getattr(mod, func_name))
             logger.debug(f"Loaded processor: {proc_path}")
-        except Exception as e:
-            logger.error(f"Failed to import processor '{proc_path}': {e}")
-            sys.exit(1)
+        except (ImportError, AttributeError, ValueError) as error:
+            raise RuntimeError(
+                f"Failed to import processor '{proc_path}'"
+            ) from error
 
     return resolved
 
@@ -73,17 +73,20 @@ def analyze_detector_simulation_file(
     """Executes event loop over detector simulation data and dispatches registered processors."""
     active_processors = resolve_processors(det_cfg, processors)
 
-    det_params = det_cfg.get("detector_parameters", {})
-    sigma_multiplier = det_params.get("sigma_multiplier", 3.0)
+    detector_parameters = det_cfg.get("detector_parameters", {})
+    sigma_multiplier = detector_parameters.get("sigma_multiplier", 3.0)
     max_eta = (
         max_pseudorapidity_override
         if max_pseudorapidity_override is not None
-        else det_params.get("max_pseudorapidity")
+        else detector_parameters.get("max_pseudorapidity")
     )
     if max_eta is None:
-        for sub_cfg in det_cfg.get("subdetectors", {}).values():
-            if isinstance(sub_cfg, dict) and "max_pseudorapidity" in sub_cfg:
-                max_eta = sub_cfg["max_pseudorapidity"]
+        for subdetector_config in det_cfg.get("subdetectors", {}).values():
+            if (
+                isinstance(subdetector_config, dict)
+                and "max_pseudorapidity" in subdetector_config
+            ):
+                max_eta = subdetector_config["max_pseudorapidity"]
                 break
 
     if bitfield_decoder is None:
@@ -106,6 +109,7 @@ def analyze_detector_simulation_file(
             config=det_cfg,
             bitfield_decoder=bitfield_decoder,
             max_eta=max_eta,
+            logger=logger,
         )
 
         if not ctx:
@@ -149,9 +153,10 @@ def run_detector_pipeline(
         with open(config_path, "r") as f:
             det_cfg = yaml.safe_load(f)
         logger.debug(f"Loaded detector configuration YAML from '{config_path}'.")
-    except Exception as e:
-        logger.error(f"Failed to load detector configuration '{config_path}': {e}")
-        sys.exit(1)
+    except (OSError, TypeError, yaml.YAMLError) as error:
+        raise RuntimeError(
+            f"Failed to load detector configuration '{config_path}'"
+        ) from error
 
     prefix = particle_prefix or det_cfg.get("validation", "general")
 
@@ -162,9 +167,8 @@ def run_detector_pipeline(
     logger.info(f"Detector config:  {config_path}")
 
     reader = open_podio_root_reader(input_file)
-    if not reader:
-        logger.error(f"Could not initialize PODIO reader for: {input_file}")
-        sys.exit(1)
+    if reader is None:
+        raise RuntimeError(f"Could not initialize PODIO reader for: {input_file}")
 
     histogram_registry = analyze_detector_simulation_file(
         podio_reader=reader,

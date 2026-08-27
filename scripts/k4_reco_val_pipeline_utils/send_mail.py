@@ -8,8 +8,7 @@ from pathlib import Path
 
 _SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 if str(_SCRIPTS_DIR) not in sys.path:
-    import sys as _sys
-    _sys.path.insert(0, str(_SCRIPTS_DIR))
+    sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from k4_reco_val_pipeline_utils.logger import setup_logger
 
@@ -21,15 +20,15 @@ def send_mail(sender: str, recipient: str, subject: str, body: str, server: str)
     logger.info(f"Sending email to '{recipient}' via '{server}'")
     logger.info(f"Subject: {subject}")
 
-    msg = EmailMessage()
-    msg.set_content(body)
-    msg["Subject"] = subject
-    msg["From"] = sender
-    msg["To"] = recipient
+    message = EmailMessage()
+    message.set_content(body)
+    message["Subject"] = subject
+    message["From"] = sender
+    message["To"] = recipient
 
     try:
         with smtplib.SMTP(server) as smtp:
-            smtp.send_message(msg)
+            smtp.send_message(message)
         logger.info(f"Email successfully sent to '{recipient}'.")
     except Exception as e:
         logger.error(f"Failed to send email to '{recipient}' via '{server}': {e}")

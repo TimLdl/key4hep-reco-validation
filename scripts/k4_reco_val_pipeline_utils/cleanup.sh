@@ -1,11 +1,10 @@
 #!/bin/bash
-source "$(dirname "$0")/utils.sh"
+source "$(dirname "$0")/utils.sh" || exit 1
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="$(pipeline_repo_root)"
 
 log_info "Initiating runtime pipeline execution cleanup tasks..."
-cd "$WORKAREA"
+cd "$WORKAREA" || exit 1
 
 if ! pipeline_has_warnings && ! pipeline_has_errors; then
     body=$(cat <<EOF

@@ -1,4 +1,4 @@
-# `scripts/detectors/k4_reco_val_utils/` — Shared Detector Utilities
+# `scripts/detectors/k4_reco_val_utils/` - Shared Detector Utilities
 
 This package contains the shared processing, histogram generation, and plotting
 utilities used by all detector variants. It is **detector-agnostic** and must
@@ -10,7 +10,7 @@ not contain any detector-specific logic.
 |---|---|
 | `engine.py` | Main execution driver: runs the event loop, dispatches processors, and calls histogram builders |
 | `helpers.py` | ROOT histogram helpers, bitfield decoder init, KS test, axis formatting, config-driven histogram definition resolver |
-| `hist_runner.py` | Shared histogram extraction entrypoint; each per-detector `hist.py` is a 8-line wrapper that calls `hist_runner.run(__file__)` |
+| `hist_runner.py` | Shared histogram extraction entrypoint; each variant `hist.py` is a small wrapper around `hist_runner.run(__file__)` |
 | `context.py` | Builds an `EventContext` dataclass per event (primary MC, track-MC map, eta acceptance) |
 | `io.py` | PODIO ROOT file reader and ROOT histogram file writer/reader |
 | `plotting.py` | CLI-driven PNG rendering engine; reads histogram ROOT files and writes PNGs in the structure expected by `web_builder.py` |
