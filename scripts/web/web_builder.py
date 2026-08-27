@@ -6,7 +6,7 @@ static site.
 
 Expected plot directory structure (written by plotting.py)::
 
-    plots_dir/<detector_slug>/<variant_slug>/<validation_slug>/<system_slug>/<plot_key>.png
+    plots_dir/<DETECTOR>/<VARIANT>/<validation_slug>/<system_slug>/<plot_key>.png
 
 The ``validation`` component (e.g. ``electron``) is resolved to a display
 particle name via :data:`PARTICLE_MAP`. The ``system`` component becomes the
@@ -218,9 +218,24 @@ class WebBuilder:
     def _collect_and_group_detector_plots(
         self, detector_id: str, detector_version: str, detector_slug: str
     ) -> dict:
-        detector_dir = self.plots_dir / detector_id
+        canonical_detector_dir = self.plots_dir / detector_id
         if detector_version and detector_version != "default":
-            detector_dir = detector_dir / detector_version
+            canonical_detector_dir = canonical_detector_dir / detector_version
+        detector_dir = canonical_detector_dir
+
+        legacy_detector_dir = self.plots_dir / normalize_slug(detector_id)
+        if detector_version and detector_version != "default":
+            legacy_detector_dir = legacy_detector_dir / normalize_slug(detector_version)
+
+        if not any(detector_dir.rglob("*.png")) and legacy_detector_dir != detector_dir:
+            if any(legacy_detector_dir.rglob("*.png")):
+                logger.warning(
+                    f"[{detector_id} {detector_version}] Using legacy slugged plot directory "
+                    f"'{legacy_detector_dir}'. Re-run the plot stage to regenerate canonical "
+                    f"'{canonical_detector_dir}'."
+                )
+                detector_dir = legacy_detector_dir
+
         grouped_particles = {}
         discovered_paths = set()
 

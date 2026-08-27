@@ -30,7 +30,7 @@ variables:
         value: "main"
         description: Branch of the FCC-config repository to clone
     CI_OUTPUT_DIR:
-        value: "$WORKAREA/$PLOTAREA"
+        value: "$WORKAREA/web"
         description: Path to the web page files
     USE_DYNAMIC_SHARDS:
         value: "true"
