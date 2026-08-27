@@ -1,5 +1,6 @@
 #!/bin/bash
 source "$(dirname "${BASH_SOURCE[0]:-$0}")/utils.sh" || exit 1
+REPO_ROOT="$(pipeline_repo_root)"
 FLOW_MANIFEST="$WORKAREA/validation_flows.tsv"
 
 if [[ ! -f "$FLOW_MANIFEST" ]]; then
