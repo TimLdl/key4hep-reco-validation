@@ -1,5 +1,5 @@
 #!/bin/bash
-source "$(dirname "$0")/utils.sh" || exit 1
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/utils.sh" || exit 1
 REPO_ROOT="$(pipeline_repo_root)"
 FLOW_MANIFEST="$WORKAREA/validation_flows.tsv"
 GENERATED_WEB_CONFIG="$WORKAREA/generated_web.yaml"

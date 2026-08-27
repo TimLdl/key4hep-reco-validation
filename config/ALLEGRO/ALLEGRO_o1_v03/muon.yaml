@@ -5,6 +5,9 @@ simulation:
   particle: "mu-"
   output_tag: "mu"
   energy: "10*GeV"
+  n_events: 100
+  # seed: 42
+  # run_track_validation: false
 
 
 detector_parameters:

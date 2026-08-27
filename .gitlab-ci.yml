@@ -14,9 +14,6 @@ variables:
     REFERENCE_SAMPLE:
         value: "references"
         description: Where to find the reference sample
-    NUMBER_OF_EVENTS:
-        value: "100"
-        description: How many events to run on
     TAG:
         value: ""
         description: Which tag to use for the release

@@ -5,6 +5,9 @@ simulation:
   particle: "e-"
   output_tag: "e"
   energy: "10*GeV"
+  n_events: 100
+  # seed: 42
+  # run_track_validation: false
 
 
 # Global detector properties

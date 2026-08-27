@@ -21,9 +21,14 @@ TSV_COLUMNS = [
     "output_tag",
     "energy",
     "seed",
+    "n_events",
+    "run_track_validation",
     "sim_script",
     "hist_script",
 ]
+
+DEFAULT_SEED = "42"
+DEFAULT_RUN_TRACK_VALIDATION = "false"
 
 
 def normalize_slug(value: str) -> str:
@@ -182,7 +187,12 @@ def discover_validation_flows(
         particle = resolve_required_simulation_field(cfg_path, config, "particle")
         output_tag = resolve_required_simulation_field(cfg_path, config, "output_tag")
         energy = resolve_required_simulation_field(cfg_path, config, "energy")
-        seed = str((config.get("simulation") or {}).get("seed", 42))
+        sim_cfg = config.get("simulation") or {}
+        seed = str(sim_cfg.get("seed", DEFAULT_SEED))
+        n_events = str(sim_cfg.get("n_events", "10"))
+        run_track_validation = str(
+            sim_cfg.get("run_track_validation", DEFAULT_RUN_TRACK_VALIDATION)
+        ).lower()
 
         flows.append(
             {
@@ -197,6 +207,8 @@ def discover_validation_flows(
                 "output_tag": output_tag,
                 "energy": energy,
                 "seed": seed,
+                "n_events": n_events,
+                "run_track_validation": run_track_validation,
                 "sim_script": str(sim_script),
                 "hist_script": str(hist_script),
             }
