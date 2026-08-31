@@ -6,14 +6,14 @@ detectors:
   - id: "IDEA"
     version: "IDEA_o1_v03"
     name: "IDEA Detector"
-    description: "Innovative Detector for Electron-Positron Accelerator"
+    description: "Innovative Detector for an Electron-positron Accelerator"
 
   - id: "ALLEGRO"
     version: "ALLEGRO_o1_v03"
     name: "ALLEGRO Detector"
-    description: "A Lepton Lepton collider Experiment with Granular Read-Out"
+    description: "A Lepton-Lepton collider Experiment with Granular Read-Out"
 
   - id: "CLD"
     version: "CLD_o2_v08"
     name: "CLD Detector"
-    description: "CLIC-Like Detector for FCC-ee"
+    description: "CLIC-Like Detector"
