@@ -1,0 +1,181 @@
+detector: "CLD"
+version: "CLD_o2_v08"
+validation: "muon"
+simulation:
+  particle: "mu-"
+  output_tag: "mu"
+  energy: "10*GeV"
+  n_events: 100
+  # seed: 42
+  # run_track_validation: false
+
+
+# Global detector properties
+detector_parameters:
+  magnetic_field_tesla: 2.0
+  sigma_multiplier: 3.0
+
+# Subdetector-specific properties and readout configs
+subdetectors:
+  tracker:
+    max_pseudorapidity: 0.99
+    bitfield_string: "system:5,side:-2,layer:6,module:11,sensor:8"
+
+collections:
+  mc_particles: "MCParticles"
+  track_collections:
+    - "SiTracks_Refitted"
+  track_mc_assoc: "SiTracksMCTruthLink"
+  vtx_digis: "VXDTrackerHits"
+  inner_tracker_digis:
+    - "ITrackerHits"
+    - "ITrackerEndcapHits"
+  outer_tracker_digis:
+    - "OTrackerHits"
+    - "OTrackerEndcapHits"
+  muon_system_hits: "MUON"
+  calo_clusters: "PandoraClusters"
+  pfo_particles: "PandoraPFOs"
+
+# List of histograms specific to CLD validation
+plots:
+  - key: "vtx_digi_hits_per_event"
+    title: "Vertex Detector Hits per Event"
+    x_title: "Vertex Detector Hits per Event"
+    type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 50.0
+    system: "vertex"
+    technology: "silicon_pixel"
+    region: "barrel_endcap"
+    apply_eta_cut: true
+
+  - key: "inner_tracker_digi_hits_per_event"
+    title: "Inner Tracker Hits per Event"
+    x_title: "Inner Tracker Hits per Event"
+    type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 50.0
+    system: "tracking"
+    technology: "silicon_tracker"
+    region: "barrel_endcap"
+    apply_eta_cut: true
+
+  - key: "outer_tracker_digi_hits_per_event"
+    title: "Outer Tracker Hits per Event"
+    x_title: "Outer Tracker Hits per Event"
+    type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 50.0
+    system: "tracking"
+    technology: "silicon_tracker"
+    region: "barrel_endcap"
+    apply_eta_cut: true
+
+  - key: "muon_system_hits_per_event"
+    title: "Muon System Hits per Event"
+    x_title: "Muon System Hits per Event"
+    type: "integer"
+    bins: 10
+    xmin: 0.0
+    xmax: 10.0
+    system: "muon_system"
+    technology: "muon_chambers"
+    region: "barrel_endcap"
+    apply_eta_cut: true
+
+  - key: "tracker_hits_per_track"
+    title: "Tracker Hits per Track"
+    x_title: "Number of Tracker Hits per Track"
+    type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 25.0
+    per_collection: true
+    system: "tracking"
+    technology: "track_reconstruction"
+    region: "global"
+    apply_eta_cut: true
+
+  - key: "reconstructed_tracks_per_event"
+    title: "Reconstructed Tracks per Event"
+    x_title: "Reconstructed Tracks per Event"
+    type: "integer"
+    bins: 12
+    xmin: 0.0
+    xmax: 5.0
+    per_collection: true
+    system: "tracking"
+    technology: "track_reconstruction"
+    region: "global"
+    apply_eta_cut: false
+
+  - key: "track_fit_chi2_over_ndf"
+    title: "Track Fit Quality #chi^{2}/ndf"
+    x_title: "#chi^{2} / ndf"
+    type: "asymmetric"
+    bins: 12
+    xmin: 0.0
+    xmax: 10.0
+    per_collection: true
+    system: "tracking"
+    technology: "track_reconstruction"
+    region: "global"
+    apply_eta_cut: false
+
+  - key: "momentum_resolution"
+    title: "Momentum Resolution #Delta p/p_{true}"
+    x_title: "(p_{reco} - p_{true}) / p_{true}"
+    type: "symmetric"
+    bins: 25
+    xmin: -0.25
+    xmax: 0.25
+    per_collection: true
+    system: "tracking"
+    technology: "track_reconstruction"
+    region: "global"
+    apply_eta_cut: false
+
+  - key: "calo_cluster_count"
+    title: "Calorimeter Cluster Multiplicity"
+    x_title: "Number of Calorimeter Clusters per Event"
+    type: "integer"
+    bins: 12
+    xmin: 0.0
+    xmax: 25.0
+    system: "calorimetry"
+    technology: "pandora_pfa"
+    region: "global"
+    apply_eta_cut: false
+
+  - key: "calo_cluster_energy_linearity"
+    title: "Leading Cluster Energy Linearity [E_{reco}/E_{true}]"
+    x_title: "E_{reco} / E_{true}"
+    type: "asymmetric"
+    bins: 12
+    xmin: 0.0
+    xmax: 2.0
+    system: "calorimetry"
+    technology: "pandora_pfa"
+    region: "global"
+    apply_eta_cut: false
+
+  - key: "pfo_energy_linearity"
+    title: "Leading PFO Energy Linearity [E_{reco}/E_{true}]"
+    x_title: "E_{reco} / E_{true}"
+    type: "asymmetric"
+    bins: 12
+    xmin: 0.0
+    xmax: 2.0
+    system: "particle_flow"
+    technology: "pandora_pfa"
+    region: "global"
+    apply_eta_cut: false
+
+processors:
+  - detectors.CLD.CLD_o2_v08.processors.process_digi_and_occupancy
+  - detectors.CLD.CLD_o2_v08.processors.process_tracking_performance
+  - detectors.CLD.CLD_o2_v08.processors.process_calorimetry_and_pfo

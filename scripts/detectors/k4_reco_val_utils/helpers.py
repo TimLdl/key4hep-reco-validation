@@ -302,6 +302,11 @@ def extract_track_to_mc_map(assoc_collection, logger=None):
                 association.getLeft(),
                 association.getRight(),
             )
+        elif hasattr(association, "getFrom"):
+            source_object, target_object = (
+                association.getFrom(),
+                association.getTo(),
+            )
         else:
             if logger:
                 logger.warning(
