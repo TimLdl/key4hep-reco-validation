@@ -1,6 +1,6 @@
-site_title: "key4hep Reconstruction Validation"
-organization: "CERN / FCC Collaboration"
-footer_text: "key4hep Reconstruction Validation"
+site_title: "Key4hep Reconstruction Validation"
+organization: "FCC Collaboration"
+footer_text: "Key4hep Reconstruction Validation"
 
 detectors:
   - id: "IDEA"
