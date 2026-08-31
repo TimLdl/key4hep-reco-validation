@@ -59,16 +59,13 @@ while IFS=$'\t' read -r detector version _slug validation config_path _config_di
         ((warning_count += 1))
     else
         log_success "Histogram generation completed for ${detector} ${version} / ${validation}"
-        if [[ "$MAKE_REFERENCE_SAMPLE" == "yes" ]]; then
-            if ! mkdir -p "$ref_dir" || ! cp "$output_file" "$ref_dir/$output_file"; then
-                message="Could not save reference histogram for ${detector} ${version} / ${validation}"
-                log_warn "$message"
-                warning_messages+=("$message")
-                ((warning_count += 1))
-                popd > /dev/null || exit 1
-                continue
-            fi
-            log_success "Reference histogram saved for validation flow '${validation}' (${detector} ${version})"
+        if [[ "$MAKE_REFERENCE_SAMPLE" == "yes" ]] && ! save_reference_file "$output_file" "$ref_dir"; then
+            message="Could not save reference histogram for ${detector} ${version} / ${validation}"
+            log_warn "$message"
+            warning_messages+=("$message")
+            ((warning_count += 1))
+            popd > /dev/null || exit 1
+            continue
         fi
         ((success_count += 1))
     fi

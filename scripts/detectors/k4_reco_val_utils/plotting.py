@@ -13,6 +13,12 @@ Usage (CLI)::
         --style-config   config/plotting.yaml \\
         --output-dir     plots/ \\
         [--ref-dir       references/ALLEGRO/ALLEGRO_o1_v03/]
+
+When a reference directory is given, each reference histogram is overlaid on the
+new one, a Kolmogorov-Smirnov test is run against it, and failing plots are
+framed in the configured colour. Multi-dimensional histograms are evaluated
+through their 1D per-axis projections. The confidence level is read from
+``ks_test.confidence_level`` in the style config.
 """
 
 import argparse
@@ -64,6 +70,28 @@ def parse_root_color(color_val, fallback=ROOT.kBlack):
     return fallback
 
 
+def draw_failure_border(canvas, color, width):
+    """Frames the canvas in `color` to flag a plot whose KS test failed.
+
+    The canvas background is filled with the border colour and an inset pad
+    holds the actual plot, leaving a visible margin of `width` pixels.
+    The returned pad is the drawing area and must stay alive until the save.
+    """
+    canvas.SetFillColor(color)
+    canvas.SetBorderMode(0)
+
+    inset_x = float(width) / max(canvas.GetWw(), 1)
+    inset_y = float(width) / max(canvas.GetWh(), 1)
+    pad = ROOT.TPad(
+        f"{canvas.GetName()}_pad", "", inset_x, inset_y, 1.0 - inset_x, 1.0 - inset_y
+    )
+    pad.SetFillColor(ROOT.gStyle.GetCanvasColor())
+    pad.SetBorderMode(0)
+    pad.Draw()
+    pad.cd()
+    return pad
+
+
 def generate_plot(
     hist,
     filename,
@@ -91,11 +119,35 @@ def generate_plot(
         f"c_{hist.GetName()}_{int(time.time()*1000)%1000}", "", c_width, c_height
     )
 
-    is_2d = isinstance(hist, ROOT.TH2)
-    if is_2d:
-        canvas.SetRightMargin(canvas_cfg.get("right_margin_2d", 0.15))
+    n_dim = hist.GetDimension()
+    is_multi_dim = n_dim > 1
+
+    # Evaluated before drawing: a failure means the plot goes inside a border pad.
+    ks_res = None
+    if ref_hist:
+        ks_res = compute_ks_test(
+            hist,
+            ref_hist,
+            confidence_level=ks_opts.get("confidence_level", 0.95),
+        )
+
+    pad = canvas
+    if ks_res is not None and not ks_res["passed"]:
+        pad = draw_failure_border(
+            canvas,
+            parse_root_color(ks_opts.get("failed_color"), ROOT.kRed),
+            ks_opts.get("frame_line_width", 2),
+        )
+
+    if n_dim == 2:
+        pad.SetRightMargin(canvas_cfg.get("right_margin_2d", 0.15))
         if draw_opt == "HIST":
             draw_opt = "COLZ"
+    elif n_dim >= 3:
+        # COLZ has no meaning for 3D histograms; a box plot is used instead.
+        if draw_opt in ("HIST", "COLZ"):
+            draw_opt = canvas_cfg.get("draw_opt_3d", "BOX2Z")
+        pad.SetRightMargin(canvas_cfg.get("right_margin_2d", 0.15))
 
     n_ev_data = get_event_count(hist)
     line_width = style_opts.get("line_width", 1)
@@ -106,7 +158,7 @@ def generate_plot(
     data_line_style = data_style.get("style", 1)
     data_label = data_style.get("label", "Data")
 
-    if not is_2d:
+    if not is_multi_dim:
         hist.SetLineColor(data_color)
         hist.SetLineStyle(data_line_style)
         hist.SetLineWidth(line_width)
@@ -118,7 +170,7 @@ def generate_plot(
         ref_line_style = ref_style.get("style", 1)
         ref_label = ref_style.get("label", "Reference")
 
-        if not is_2d:
+        if not is_multi_dim:
             ref_hist.SetLineColor(ref_color)
             ref_hist.SetLineStyle(ref_line_style)
             ref_hist.SetLineWidth(line_width)
@@ -131,16 +183,6 @@ def generate_plot(
             ref_hist.Draw(f"{draw_opt} SAME")
         else:
             hist.Draw(draw_opt)
-
-        # KS evaluation and bound highlighting on failure
-        conf_level = ks_opts.get("confidence_level", 0.05)
-        ks_res = compute_ks_test(hist, ref_hist, confidence_level=conf_level)
-
-        if ks_res is not None and not ks_res["passed"]:
-            failed_color = parse_root_color(ks_opts.get("failed_color"))
-            frame_width = ks_opts.get("frame_line_width", 2)
-            canvas.SetFrameLineColor(failed_color)
-            canvas.SetFrameLineWidth(frame_width)
 
         n_ev_ref = get_event_count(ref_hist)
 
@@ -156,21 +198,20 @@ def generate_plot(
         legend.SetTextFont(legend_cfg.get("text_font", 42))
         legend.SetTextSize(legend_cfg.get("text_size", 0.03))
 
-        legend.AddEntry(
-            hist, f"{data_label} (N_{{ev}} = {n_ev_data})", "l" if not is_2d else "f"
-        )
-        legend.AddEntry(
-            ref_hist, f"{ref_label} (N_{{ev}} = {n_ev_ref})", "l" if not is_2d else "f"
-        )
+        # 2D/3D histograms draw no reference curve, so list it as text only.
+        if is_multi_dim:
+            legend.AddEntry("", f"{data_label} (N_{{ev}} = {n_ev_data})", "")
+            legend.AddEntry("", f"{ref_label} (N_{{ev}} = {n_ev_ref})", "")
+        else:
+            legend.AddEntry(hist, f"{data_label} (N_{{ev}} = {n_ev_data})", "l")
+            legend.AddEntry(ref_hist, f"{ref_label} (N_{{ev}} = {n_ev_ref})", "l")
 
         if ks_res is not None:
             status_str = "Pass" if ks_res["passed"] else "Fail"
-            if ks_res["is_2d"]:
-                p_x = ks_res["p_value"]["x"]
-                p_y = ks_res["p_value"]["y"]
-                legend.AddEntry(
-                    "", f"KS p(X/Y): {p_x:.3f} / {p_y:.3f} [{status_str}]", ""
-                )
+            if ks_res["dimension"] > 1:
+                axes = "/".join(ax.upper() for ax in ks_res["p_value"])
+                vals = " / ".join(f"{p:.3f}" for p in ks_res["p_value"].values())
+                legend.AddEntry("", f"KS p({axes}): {vals} [{status_str}]", "")
             else:
                 p_val = ks_res["p_value"]
                 legend.AddEntry("", f"KS p-val: {p_val:.4f} [{status_str}]", "")
@@ -182,7 +223,7 @@ def generate_plot(
     plot_title = (
         f"{title}  (N_{{ev}} = {n_ev_data})" if title and not ref_hist else title
     )
-    latex = draw_title_latex(plot_title, canvas)
+    latex = draw_title_latex(plot_title, pad)
 
     canvas.SaveAs(full_path)
     logger.debug(f"Saved plot: {full_path}")
@@ -306,7 +347,6 @@ def main():
                 filename=f"{spec['key']}.png",
                 out_dir=target_dir,
                 config=plotting_cfg,
-                draw_opt="COLZ" if isinstance(histogram, ROOT.TH2) else "HIST",
                 title=f"{detector_name} — {spec['title']}",
             )
             plot_count += 1

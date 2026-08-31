@@ -57,6 +57,17 @@ while IFS=$'\t' read -r detector version _slug validation _config_path _config_d
         ((warning_count += 1))
     else
         log_success "Simulation completed for ${detector} ${version} / ${validation}"
+        if [[ "$MAKE_REFERENCE_SAMPLE" == "yes" ]]; then
+            ref_dir="$WORKAREA/$REFERENCE_SAMPLE/$detector/$version"
+            for stage_file in *"${output_tag}_particleGun_"{sim,digi}.root; do
+                if ! save_reference_file "$stage_file" "$ref_dir"; then
+                    message="Could not save reference file '${stage_file}' for ${detector} ${version} / ${validation}"
+                    log_warn "$message"
+                    warning_messages+=("$message")
+                    ((warning_count += 1))
+                fi
+            done
+        fi
         ((success_count += 1))
     fi
 

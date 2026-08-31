@@ -85,6 +85,11 @@ detector  version  slug  validation  config_path  config_dir  config_rel_dir  pa
 | Digi ROOT file | `<DET>_<output_tag>_particleGun_digi.root` | `ALLEGRO_e_particleGun_digi.root` |
 | Histogram ROOT file | `<DET>_<validation>_particleGun_hist.root` | `ALLEGRO_electron_particleGun_hist.root` |
 | Reference hist file | same as histogram file, stored under `$REFERENCE_SAMPLE/<DET>/<VER>/` | |
+| Reference sim/digi files | same as sim/digi files, stored under `$REFERENCE_SAMPLE/<DET>/<VER>/` | |
+
+Reference files (sim, digi and histogram) are written only when
+`MAKE_REFERENCE_SAMPLE=yes`; otherwise existing references are left untouched
+and used as the comparison baseline in the plot stage.
 
 ## Logging
 
