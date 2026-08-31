@@ -105,7 +105,7 @@ simulation:
         - if: '($CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)) && $USE_DYNAMIC_SHARDS == "true"'
           when: never
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)'
-    parallel: 4
+    parallel: 6
     script:
         - bash scripts/k4_reco_val_pipeline_utils/simulation.sh
     artifacts:
@@ -121,7 +121,7 @@ validation:
         - if: '($CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)) && $USE_DYNAMIC_SHARDS == "true"'
           when: never
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)'
-    parallel: 4
+    parallel: 6
     script:
         - bash scripts/k4_reco_val_pipeline_utils/validation.sh
     artifacts:
@@ -140,7 +140,7 @@ plot:
           when: never
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)'
           when: on_success
-    parallel: 4
+    parallel: 6
     script:
         - bash scripts/k4_reco_val_pipeline_utils/plot.sh
     artifacts:
