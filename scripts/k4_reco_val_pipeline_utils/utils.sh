@@ -128,6 +128,16 @@ send_stage_mail() {
         }
 }
 
+save_reference_file() {
+    local source_file="$1"
+    local ref_dir="$2"
+
+    [[ -f "$source_file" ]] || return 1
+
+    mkdir -p "$ref_dir" && cp -f "$source_file" "${ref_dir}/$(basename "$source_file")" || return 1
+    log_success "Reference saved: ${ref_dir}/$(basename "$source_file")"
+}
+
 pipeline_warning_file() {
     local job_key
     job_key="$(normalize_slug "${CI_JOB_NAME:-local_job}")"

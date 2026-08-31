@@ -7,7 +7,7 @@ Functions:
 
 - :func:`open_podio_root_reader` — opens a PODIO ROOT file for event-by-event reading
 - :func:`write_histograms_to_file` — writes a histogram registry dict to a ROOT file
-- :func:`read_histograms_from_file` — reads all TH1/TH2 objects from a ROOT file into a dict
+- :func:`read_histograms_from_file` — reads all TH1/TH2/TH3 objects from a ROOT file into a dict
 """
 
 import os
@@ -74,7 +74,7 @@ def write_histograms_to_file(histogram_registry, output_path, mode="UPDATE"):
 
 
 def read_histograms_from_file(input_path):
-    """Reads all TH1/TH2 histogram objects from a ROOT file into a dictionary."""
+    """Reads all TH1/TH2/TH3 histogram objects from a ROOT file into a dictionary."""
     logger.info(f"Opening ROOT file for reading: {input_path}")
     if not os.path.exists(input_path):
         logger.error(f"Histogram file does not exist: {input_path}")
