@@ -3,7 +3,7 @@
 Produces PNG images from ROOT histogram files, organized into a directory
 hierarchy consumed by the web builder:
 
-    <output_dir>/<DETECTOR>/<VARIANT>/<validation>/<system>/<plot_key>.png
+    <output_dir>/<detector_slug>/<variant_slug>/<validation_slug>/<system_slug>/<plot_key>.png
 
 Usage (CLI)::
 
@@ -40,6 +40,14 @@ from detectors.k4_reco_val_utils.io import read_histograms_from_file
 from k4_reco_val_pipeline_utils.logger import setup_logger
 
 logger = setup_logger("plotting")
+
+
+def normalize_slug(value):
+    """Return a filesystem-safe directory slug with a uniform underscore convention."""
+    cleaned = str(value).strip().lower()
+    cleaned = "".join(ch if ch.isalnum() else "_" for ch in cleaned)
+    cleaned = "_".join(part for part in cleaned.split("_") if part)
+    return cleaned or "general"
 
 
 def parse_root_color(color_val, fallback=ROOT.kBlack):
@@ -208,7 +216,7 @@ def main():
     parser.add_argument(
         "--output-dir",
         default="output/plots",
-        help="Root output directory; PNGs are written under <output_dir>/<DET>/<VARIANT>/<validation>/<system>/",
+        help="Root output directory; PNGs are written under <output_dir>/<detector_slug>/<variant_slug>/<validation_slug>/<system_slug>/",
     )
     parser.add_argument(
         "--ref-dir",
@@ -231,6 +239,10 @@ def main():
     detector_name = det_cfg.get("detector", "UNKNOWN")
     variant_name = det_cfg.get("version", "default")
     validation_name = det_cfg.get("validation", "general")
+
+    detector_slug = normalize_slug(detector_name)
+    variant_slug = normalize_slug(variant_name)
+    validation_slug = normalize_slug(validation_name)
 
     # Parse input files: validation_name=path
     file_map = {}
@@ -280,13 +292,13 @@ def main():
 
             ref_histogram = find_histogram(ref_registry, ds_key, spec["key"]) if ref_registry else None
 
-            # Output path: <output_dir>/<DETECTOR>/<VARIANT>/<validation>/<system>/
+            # Output path: <output_dir>/<slugified_detector>/<slugified_variant>/<slugified_validation>/<system>/
             target_dir = os.path.join(
                 args.output_dir,
-                detector_name,
-                variant_name,
-                validation_name,
-                spec["system"],
+                detector_slug,
+                variant_slug,
+                validation_slug,
+                normalize_slug(spec["system"]),
             )
 
             generate_plot(

@@ -22,6 +22,8 @@ log_info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
 # --- Defaults ---
 DATA_DIR="${DATA_DIR:-$REPO_ROOT/data}"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/test-output}"
+HIST_ROOT="${OUTPUT_DIR}/hist"
+PLOT_ROOT="${OUTPUT_DIR}/plots"
 REF_DIR="${REF_DIR:-$REPO_ROOT/references}"
 VERSIONS="${VERSIONS:-}"
 
@@ -35,7 +37,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [--data-dir DIR] [--output-dir DIR] [--ref-dir DIR] [--versions FILTER]"
             echo ""
             echo "  --data-dir    Directory containing pre-existing digi ROOT files (default: ./data)"
-            echo "  --output-dir  Directory for histograms and plots output (default: ./test-output)"
+            echo "  --output-dir  Root directory for outputs (hist under ./hist, plots under ./plots)"
             echo "  --ref-dir     Directory containing reference histograms for comparison (default: ./references)"
             echo "  --versions    Comma-separated variant filter, e.g. ALLEGRO_o1_v03 (default: all)"
             exit 0 ;;
@@ -49,7 +51,7 @@ if [[ -z "${KEY4HEP_STACK}" ]]; then
     source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
 fi
 
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "$HIST_ROOT" "$PLOT_ROOT"
 
 # --- Discover validation flows ---
 log_info "Discovering validation flows..."
@@ -71,11 +73,11 @@ while IFS=$'\t' read -r detector version slug validation config_path config_dir 
     [[ -z "$detector" ]] && continue
 
     digi_file="$DATA_DIR/$detector/$version/${detector}_${output_tag}_particleGun_digi.root"
-    hist_file="$OUTPUT_DIR/$detector/$version/${detector}_${validation}_particleGun_hist.root"
-    plot_dir="$OUTPUT_DIR/$detector/$version/plots"
+    hist_file="$HIST_ROOT/$detector/$version/${detector}_${validation}_particleGun_hist.root"
+    plot_dir="$PLOT_ROOT/$slug"
     variant_ref_dir="$REF_DIR/$detector/$version"
 
-    mkdir -p "$OUTPUT_DIR/$detector/$version"
+    mkdir -p "$(dirname "$hist_file")"
 
     if [[ ! -f "$digi_file" ]]; then
         log_warn "Skipping '${validation}' (${detector} ${version}): digi file not found at $digi_file"
@@ -98,7 +100,7 @@ while IFS=$'\t' read -r detector version slug validation config_path config_dir 
         --inputs "${validation}=${hist_file}" \
         --detector-config "$config_path" \
         --style-config "$REPO_ROOT/config/plotting.yaml" \
-        --output-dir "$plot_dir" \
+        --output-dir "$PLOT_ROOT" \
         "${ref_args[@]}" || { log_error "Plot rendering failed for ${validation}!"; FAIL=1; continue; }
 
     log_success "Completed: ${detector} ${version} / ${validation} -> $plot_dir"

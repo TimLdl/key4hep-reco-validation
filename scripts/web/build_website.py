@@ -11,7 +11,7 @@ Usage::
         --templates-dir web/templates \\
         --static-dir    web/static \\
         --plots-dir     /workarea/plots \\
-        --output-dir    /workarea/plots
+        --output-dir    /workarea/web
 """
 
 import argparse

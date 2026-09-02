@@ -25,6 +25,16 @@ TSV_COLUMNS = [
 ]
 
 
+def normalize_slug(value: str) -> str:
+    """Return a filesystem-safe, uniform slug for generated outputs."""
+    if value is None:
+        return "general"
+    cleaned = str(value).strip().lower()
+    cleaned = "".join(char if char.isalnum() else "_" for char in cleaned)
+    cleaned = "_".join(part for part in cleaned.split("_") if part)
+    return cleaned or "general"
+
+
 def parse_requested_versions(raw: Optional[str]) -> Optional[set[str]]:
     if raw is None:
         return None
@@ -86,7 +96,7 @@ def discover_validation_flows(
         detector = str(cfg.get("detector", detector_from_path))
         version = str(cfg.get("version", version_from_path))
         validation = str(cfg.get("validation", cfg_path.stem))
-        slug = version
+        slug = normalize_slug(version)
 
         if not version_selected(detector, version, requested_versions):
             continue
@@ -167,7 +177,7 @@ def discover_detector_variants(
         variants.append(
             {
                 "id": flow["detector"],
-                "slug": flow["slug"],
+                "slug": normalize_slug(flow["slug"]),
                 "version": flow["version"],
                 "name": override.get("name", f"{flow['detector']} Detector"),
                 "description": override.get(

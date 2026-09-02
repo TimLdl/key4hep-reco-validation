@@ -6,7 +6,7 @@ static site.
 
 Expected plot directory structure (written by plotting.py)::
 
-    plots_dir/<DETECTOR>/<VARIANT>/<validation>/<system>/<plot_key>.png
+    plots_dir/<detector_slug>/<variant_slug>/<validation_slug>/<system_slug>/<plot_key>.png
 
 The ``validation`` component (e.g. ``electron``) is resolved to a display
 particle name via :data:`PARTICLE_MAP`. The ``system`` component becomes the
@@ -38,6 +38,19 @@ if str(SCRIPTS_DIR) not in sys.path:
 from k4_reco_val_pipeline_utils.logger import setup_logger
 
 logger = setup_logger("web_builder")
+
+
+def normalize_slug(value: str) -> str:
+    """Return a filesystem-safe slug with a single underscore separator."""
+    if value is None:
+        return "general"
+    cleaned = str(value).strip().lower()
+    cleaned = "".join(
+        char if char.isalnum() else "_" for char in cleaned
+    )
+    cleaned = "_".join(part for part in cleaned.split("_") if part)
+    return cleaned or "general"
+
 
 # Map folder/particle aliases to clean display names & slugs
 PARTICLE_MAP = {
@@ -165,7 +178,7 @@ class WebBuilder:
 
         if dir_parts and dir_parts[0] in PARTICLE_MAP:
             # Standard layout: <particle>/<system>/[<algo>/[<module>/]]
-            particle_slug = dir_parts[0]
+            particle_slug = normalize_slug(dir_parts[0])
             particle_display = PARTICLE_MAP[particle_slug]
             if len(dir_parts) >= 2:
                 subdetector_display = dir_parts[1].replace("_", " ").title()
@@ -185,9 +198,9 @@ class WebBuilder:
             if len(dir_parts) >= 3:
                 module_type_display = dir_parts[2].replace("_", " ").title()
 
-        s_slug = subdetector_display.lower().replace(" ", "_")
-        a_slug = algorithm_display.lower().replace(" ", "_")
-        m_slug = module_type_display.lower().replace(" ", "_")
+        s_slug = normalize_slug(subdetector_display)
+        a_slug = normalize_slug(algorithm_display)
+        m_slug = normalize_slug(module_type_display)
 
         return {
             "file_path": img_path,
@@ -294,8 +307,10 @@ class WebBuilder:
         for det in detectors:
             det_id = det.get("id")
             det_version = det.get("version", "default")
-            detector_slug = det.get("slug") or (det_version if det_version and det_version != "default" else det_id)
-            det["slug"] = detector_slug
+            detector_slug = det.get("slug") or (
+                det_version if det_version and det_version != "default" else det_id
+            )
+            det["slug"] = normalize_slug(detector_slug)
             particles_data = self._collect_and_group_detector_plots(det_id, det_version, detector_slug)
 
             det["particles"] = [

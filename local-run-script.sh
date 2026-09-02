@@ -40,7 +40,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [--runTask TASK] [--only]"
             echo ""
             echo "  --runTask TASK  Run up to and including TASK (default: plot)"
-            echo "                  Available tasks: setup, simulation, validation, plot, web"
+            echo "                  Available tasks: setup, simulation, validation, plot, web, cleanup"
             echo "  --only          Run only the specified task, not the full chain up to it"
             echo ""
             echo "Environment variable overrides:"
@@ -50,6 +50,7 @@ while [[ $# -gt 0 ]]; do
             echo "  STEERING_FILE_REPO        FCC-config repository URL"
             echo "  STEERING_FILE_BRANCH      FCC-config branch (default: main)"
             echo "  TAG                       Key4hep nightly tag (default: latest)"
+            echo "  USE_DYNAMIC_SHARDS        true/false, enable generated child pipeline mode (default: false)"
             exit 0 ;;
         *)
             log_warn "Unknown option: $1"; shift ;;
@@ -57,7 +58,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Default Values & Configuration Hierarchy
-DEFAULT_ORDER="setup,simulation,validation,plot,web"
+DEFAULT_ORDER="setup,simulation,validation,plot,web,cleanup"
 TASK_ORDER="${TASK_ORDER:-$DEFAULT_ORDER}"
 RUN_TASK="${RUN_TASK:-plot}"
 
@@ -70,6 +71,8 @@ export REFERENCE_SAMPLE="${REFERENCE_SAMPLE:-references}"
 export VERSIONS="${VERSIONS:-}"
 export MAKE_REFERENCE_SAMPLE="${MAKE_REFERENCE_SAMPLE:-yes}"
 export TAG="${TAG:-}"
+export EMAIL_ADDRESSES="${EMAIL_ADDRESSES:-tim.leidel@cern.ch}"
+export USE_DYNAMIC_SHARDS="${USE_DYNAMIC_SHARDS:-false}"
 
 # --- Resolve Execution Order Chain ---
 IFS=',' read -r -a ALL_TASKS <<< "$TASK_ORDER"
@@ -126,7 +129,7 @@ fi
 if [[ " ${TASKS_TO_RUN[*]} " =~ " setup " ]]; then
     if [ -d "$WORKAREA" ]; then
         log_warn "Directory $WORKAREA already exists. Clearing contents for fresh setup..."
-        rm -rf "$WORKAREA"/*
+        find "$WORKAREA" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
         log_success "Workspace cleanup completed."
     else
         mkdir -p "$WORKAREA"
@@ -147,25 +150,40 @@ run_gitlab_job() {
     log_info "--------------------------------------------------"
 
     local start_time=$(date +%s)
+    local rc=0
 
+    set +e
     gitlab-ci-local --force-shell-executor \
         --variable WORKAREA="$WORKAREA" \
         --variable PLOTAREA="$PLOTAREA" \
         --variable REFERENCE_SAMPLE="$REFERENCE_SAMPLE" \
         --variable VERSIONS="$VERSIONS" \
+        --variable USE_DYNAMIC_SHARDS="$USE_DYNAMIC_SHARDS" \
         --variable MAKE_REFERENCE_SAMPLE="$MAKE_REFERENCE_SAMPLE" \
         --variable STEERING_FILE_REPO="$STEERING_FILE_REPO" \
         --variable STEERING_FILE_BRANCH="$STEERING_FILE_BRANCH" \
         --variable TAG="$TAG" \
+        --variable EMAIL_ADDRESSES="$EMAIL_ADDRESSES" \
         "$job_name"
+    rc=$?
+    set -e
 
     local end_time=$(date +%s)
+    if [[ $rc -ne 0 ]]; then
+        log_error "FAILED TASK: $job_name (Duration: $((end_time - start_time))s)"
+        return 1
+    fi
+
     log_success "COMPLETED TASK: $job_name (Duration: $((end_time - start_time))s)"
+    return 0
 }
 
 # --- Execute Pipeline Chain ---
 for TASK in "${TASKS_TO_RUN[@]}"; do
-    run_gitlab_job "$TASK"
+    if ! run_gitlab_job "$TASK"; then
+        log_error "Pipeline aborted after task '$TASK'."
+        exit 1
+    fi
 done
 
 log_info "=================================================="
