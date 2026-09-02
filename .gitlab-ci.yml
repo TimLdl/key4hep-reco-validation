@@ -1,0 +1,145 @@
+variables:
+    VERSIONS:
+        value: IDEA_o1_v03,ALLEGRO_o1_v03
+        description: Which geometries to use (must be separated by comma)
+    MAKE_REFERENCE_SAMPLE:
+        value: "no"
+        description: Whether to only make a reference sample for later use
+    PARTICLES:
+        value: e-,mu-
+        description: Which particles to use for the particle gun simulations
+    WORKAREA:
+        value: "/validation"
+        description: Where to run the validation on the runner
+    PLOTAREA:
+        value: "plots"
+        description: Where to store the plots and information for the validation website
+    REFERENCE_SAMPLE:
+        value: "references"
+        description: Where to find the reference sample
+    NUMBER_OF_EVENTS:
+        value: "100"
+        description: How many events to run on
+    TAG:
+        value: ""
+        description: Which tag to use for the release
+    COMPARISON_TEST:
+        value: "identical"
+        description: Which statistical test to implement to compare histograms
+    SIGNIFICANCE_LEVEL:
+        value: "0.95"
+        description: Significance level of the comparison test (between 0 and 1)
+    EMAIL_ADDRESSES:
+        value: "tim.leidel@cern.ch"
+        description: Email addresses to send status emails to (separated by comma)
+    KEY4HEP_RECO_VALIDATION_REPO:
+        value: "https://github.com/TimLdl/key4hep-reco-validation.git"
+        description: Web URL of the key4hep-reco-validation repository to clone
+    KEY4HEP_RECO_VALIDATION_BRANCH:
+        value: "preparation-for-pipeline"
+        description: Branch of the key4hep-reco-validation repository to clone
+    STEERING_FILE_REPO:
+        value: "https://github.com/HEP-FCC/FCC-config.git"
+        description: Web URL of the steering file repository to clone
+    STEERING_FILE_BRANCH:
+        value: "main"
+        description: Branch of the FCC-config repository to clone
+    CI_OUTPUT_DIR:
+        value: "$WORKAREA/$PLOTAREA"
+        description: Path to the web page files
+
+stages:
+    - setup
+    - simulation
+    - validation
+    - plot
+    - web
+    - deploy
+    - cleanup
+
+# --- Global Blueprint Templates ---
+.template-job:
+    image: gitlab-registry.cern.ch/key4hep/k4-deploy/alma9-build
+    tags:
+        - validation
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+# --- Pipeline Stages ---
+setup:
+    extends: .template-job
+    stage: setup
+    when: always
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    script:
+        - bash scripts/setup.sh
+
+simulation:
+    extends: .template-job
+    stage: simulation
+    when: always
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    script:
+        - bash scripts/simulation.sh
+
+validation:
+    extends: .template-job
+    stage: validation
+    when: always
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    script:
+        - bash scripts/validation.sh
+
+plot:
+    extends: .template-job
+    stage: plot
+    when: always
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$MAKE_REFERENCE_SAMPLE == "no"'
+          changes:
+              - never
+    script:
+        - bash scripts/plot.sh
+
+web:
+    extends: .template-job
+    stage: web
+    when: on_success
+    needs:
+        - plot
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$MAKE_REFERENCE_SAMPLE == "no"'
+          changes:
+              - never
+    script:
+        - bash scripts/web.sh
+
+deployment:
+    extends: .template-job
+    image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer
+    when: on_success
+    needs:
+        - web
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+          when: never
+        - if: '$MAKE_REFERENCE_SAMPLE == "no"'
+          changes:
+              - never
+    stage: deploy
+    script:
+        - deploy-eos
+    before_script: []
+    after_script: []
+
+cleanup:
+    extends: .template-job
+    stage: cleanup
+    when: always
+    script:
+        - bash scripts/cleanup.sh
