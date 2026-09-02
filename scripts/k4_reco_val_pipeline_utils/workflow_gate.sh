@@ -1,5 +1,5 @@
 #!/bin/bash
-source "$(dirname "$0")/utils.sh" || exit 1
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/utils.sh" || exit 1
 
 REPO_ROOT="$(pipeline_repo_root)"
 PLOT_ROOT="$WORKAREA/$PLOTAREA"
@@ -29,7 +29,7 @@ flows_with_hist=0
 flows_with_plots=0
 declare -a detail_lines=()
 
-while IFS=$'\t' read -r detector version _slug validation _config_path _config_dir _config_rel_dir _particle output_tag _energy _seed _sim_script _hist_script; do
+while IFS=$'\t' read -r detector version _slug validation _config_path _config_dir _config_rel_dir _particle output_tag _energy _seed _n_events _run_track_validation _sim_script _hist_script; do
     [[ -z "$detector" ]] && continue
     ((total_flows += 1))
 

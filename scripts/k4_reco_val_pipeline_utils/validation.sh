@@ -1,5 +1,5 @@
 #!/bin/bash
-source "$(dirname "$0")/utils.sh" || exit 1
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/utils.sh" || exit 1
 FLOW_MANIFEST="$WORKAREA/validation_flows.tsv"
 
 if [[ ! -f "$FLOW_MANIFEST" ]]; then
@@ -13,7 +13,7 @@ warning_count=0
 declare -a warning_messages=()
 declare -a failure_messages=()
 
-while IFS=$'\t' read -r detector version _slug validation config_path _config_dir _config_rel_dir _particle output_tag _energy _seed _sim_script hist_script; do
+while IFS=$'\t' read -r detector version _slug validation config_path _config_dir _config_rel_dir _particle output_tag _energy _seed _n_events _run_track_validation _sim_script hist_script; do
     [[ -z "$detector" ]] && continue
     ((selected_count += 1))
 
