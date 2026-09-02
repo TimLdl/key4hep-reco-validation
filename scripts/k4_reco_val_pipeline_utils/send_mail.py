@@ -1,13 +1,25 @@
+"""SMTP email notification helper for pipeline status alerts."""
+
 import argparse
 import smtplib
 import sys
 from email.message import EmailMessage
+from pathlib import Path
+
+_SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(_SCRIPTS_DIR) not in sys.path:
+    import sys as _sys
+    _sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from k4_reco_val_pipeline_utils.logger import setup_logger
+
+logger = setup_logger("send_mail")
 
 
 def send_mail(sender: str, recipient: str, subject: str, body: str, server: str):
     """Constructs and dispatches an email via the specified SMTP server."""
-    print(f"Preparing to send email to '{recipient}' via server '{server}'...")
-    print(f"Subject: {subject}")
+    logger.info(f"Sending email to '{recipient}' via '{server}'")
+    logger.info(f"Subject: {subject}")
 
     msg = EmailMessage()
     msg.set_content(body)
@@ -18,59 +30,37 @@ def send_mail(sender: str, recipient: str, subject: str, body: str, server: str)
     try:
         with smtplib.SMTP(server) as smtp:
             smtp.send_message(msg)
-        print(f"Email successfully sent to '{recipient}'.")
+        logger.info(f"Email successfully sent to '{recipient}'.")
     except Exception as e:
-        print(
-            f"ERROR: Failed to send email to '{recipient}' via server '{server}': {e}",
-            file=sys.stderr,
-        )
+        logger.error(f"Failed to send email to '{recipient}' via '{server}': {e}")
         sys.exit(1)
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Helper script to send status emails for Key4hep Reco validation."
+        description="Send status notification emails for the key4hep reconstruction validation pipeline."
     )
+    parser.add_argument("-b", "--body", default=None, help="Email body text")
     parser.add_argument(
-        "-b",
-        "--body",
-        type=str,
-        default=None,
-        help="Body of the email (has precedence over --input-file)",
-    )
-    parser.add_argument(
-        "-f",
-        "--input-file",
-        type=str,
-        default=None,
-        help="File containing the body of the email",
+        "-f", "--input-file", default=None, help="File containing the email body"
     )
     parser.add_argument(
         "-s",
         "--subject",
-        type=str,
         default="Key4hep Reco Validation Status",
-        help="Subject of the email",
+        help="Email subject line",
     )
     parser.add_argument(
         "--from",
         dest="sender",
-        type=str,
         default="key4hep-reco-validation-noreply@cern.ch",
-        help="Email address of the sender",
+        help="Sender email address",
     )
     parser.add_argument(
-        "--to",
-        dest="recipient",
-        required=True,
-        type=str,
-        help="Email address(es) of the receiver(s)",
+        "--to", dest="recipient", required=True, help="Recipient email address(es)"
     )
     parser.add_argument(
-        "--server",
-        type=str,
-        default="cernmx.cern.ch",
-        help="Email SMTP server to use",
+        "--server", default="cernmx.cern.ch", help="SMTP server hostname"
     )
     return parser.parse_args()
 
@@ -78,29 +68,16 @@ def parse_arguments():
 def main():
     args = parse_arguments()
 
-    print("Starting email notification script execution.")
-    print(f"Recipient: {args.recipient}")
-    print(f"Subject:   {args.subject}")
-    print(f"Server:    {args.server}")
-
     body = args.body
     if body is None and args.input_file is not None:
         try:
-            with open(args.input_file, "r", encoding="utf-8") as infile:
-                body = infile.read()
-            print(f"Successfully read email body from file: {args.input_file}")
+            body = Path(args.input_file).read_text(encoding="utf-8")
         except Exception as e:
-            print(
-                f"ERROR: Failed to read email body input file '{args.input_file}': {e}",
-                file=sys.stderr,
-            )
+            logger.error(f"Failed to read email body from '{args.input_file}': {e}")
             sys.exit(1)
 
     if not body:
-        print(
-            "ERROR: Please provide email text using either --body or --input-file.",
-            file=sys.stderr,
-        )
+        logger.error("No email body provided. Use --body or --input-file.")
         sys.exit(1)
 
     send_mail(

@@ -1,3 +1,19 @@
+"""Shared helper utilities for histogram building, ROOT styling, and configuration parsing.
+
+This module is imported by both the histogram extraction pipeline (``engine.py``)
+and the plotting engine (``plotting.py``). All functions are detector-agnostic.
+
+Key function groups:
+
+- **Histogram building**: :func:`resolve_histogram_definitions`, :func:`build_and_fill_histograms`
+- **Config discovery**: :func:`discover_validation_configs`
+- **ROOT helpers**: :func:`apply_root_graphics_style`, :func:`optimize_axis_ticks`, :func:`draw_title_latex`
+- **KS test**: :func:`compute_ks_test`
+- **Physics utilities**: :func:`evaluate_particle_eta_acceptance`, :func:`calculate_track_momentum`
+- **Event data access**: :func:`extract_track_to_mc_map`, :func:`get_collection_hits`
+- **Detector geometry**: :func:`init_bitfield_coder`
+"""
+
 import math
 import os
 import shutil

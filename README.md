@@ -37,17 +37,17 @@ An automated validation framework designed for evaluating detector simulation an
 │   │       ├── hist_runner.py      # Shared histogram extraction logic used by all hist.py wrappers
 │   │       ├── plotting.py         # ROOT canvas styling and plot rendering engine
 │   │       ├── context.py          # EventContext builder
-│   │       └── io.py               # PODIO event reading and ROOT I/O handlers
-│   ├── k4_reco_val_pipeline_utils/ # Pipeline stage scripts and notification helpers
-│   │   ├── setup.sh                # Workspace init and FCC-config clone
+│   │       └── io.py               # PODIO event reading and ROOT I/O handlers│   ├── k4_reco_val_pipeline_utils/ # Pipeline stage scripts and notification helpers
+│   │   ├── setup.sh                # Workspace init, config discovery, FCC-config clone
 │   │   ├── simulation.sh           # Particle gun simulation loop
 │   │   ├── validation.sh           # Histogram generation and optional reference saving
 │   │   ├── plot.sh                 # Plot rendering with optional KS reference comparison
 │   │   ├── web.sh                  # Metadata collection and website build
 │   │   ├── cleanup.sh              # Post-pipeline scratch data removal
+│   │   ├── config_discovery.py     # Auto-discovers validation flows from config tree; writes manifest
 │   │   ├── send_mail.py            # SMTP status notification helper
-│   │   ├── logger.py               # Python logging setup helper
-│   │   └── utils.sh                # Shared shell logging functions and Key4hep stack init
+│   │   ├── logger.py               # Python logging setup (console + file, respects K4_LOG_DIR)
+│   │   └── utils.sh                # Shared shell logging helpers, Key4hep stack init, K4_LOG_DIR export
 │   └── web/                        # Web site generation tools
 │       ├── build_website.py        # CLI interface for static site building
 │       └── web_builder.py          # Metadata parser and Jinja2 template rendering engine
@@ -61,8 +61,6 @@ An automated validation framework designed for evaluating detector simulation an
 │       ├── index.html.j2           # Global landing page showing available detector concepts
 │       ├── detector.html.j2        # Concept overview listing particle validation dashboards
 │       ├── particle_dashboard.html.j2 # Plot gallery with sticky quick-jump bar
-│       ├── plot_card.html.j2       # Reusable component card for rendering plot images
-│       ├── navbar.html.j2          # Reusable navigation bar component
 │       └── components/
 │           └── particle_nav.html.j2# Tabbed navigation component for switching particles
 ├── local-run-script.sh             # End-to-end pipeline execution script for local runs (uses gitlab-ci-local)

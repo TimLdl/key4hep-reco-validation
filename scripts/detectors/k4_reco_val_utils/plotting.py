@@ -1,8 +1,26 @@
+"""Detector-agnostic plot rendering engine.
+
+Produces PNG images from ROOT histogram files, organized into a directory
+hierarchy consumed by the web builder:
+
+    <output_dir>/<DETECTOR>/<VARIANT>/<validation>/<system>/<plot_key>.png
+
+Usage (CLI)::
+
+    python3 plotting.py \\
+        --inputs electron=ALLEGRO_electron_particleGun_hist.root \\
+        --detector-config config/ALLEGRO/ALLEGRO_o1_v03/electron.yaml \\
+        --style-config   config/plotting.yaml \\
+        --output-dir     plots/ \\
+        [--ref-dir       references/ALLEGRO/ALLEGRO_o1_v03/]
+"""
+
 import argparse
 import os
 import sys
 import time
 from pathlib import Path
+
 import ROOT
 import yaml
 
@@ -164,33 +182,41 @@ def generate_plot(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Shared detector-agnostic plotting engine."
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--inputs",
         nargs="+",
         required=True,
-        help="Input ROOT files in key=path format (e.g. data=output.root)",
+        help=(
+            "Input ROOT histogram file(s) in 'validation_name=path' format. "
+            "The validation_name (e.g. 'electron') becomes the particle directory "
+            "in the output hierarchy and is used for reference file lookup."
+        ),
     )
     parser.add_argument(
         "--detector-config",
         required=True,
-        help="Detector configuration specifying plot lists and validation name",
+        help="Per-particle validation config YAML (defines plots, collections, etc.)",
     )
     parser.add_argument(
         "--style-config",
         default="config/plotting.yaml",
-        help="Global visual style configuration",
+        help="Global ROOT visual style configuration YAML",
     )
     parser.add_argument(
         "--output-dir",
         default="output/plots",
-        help="Output directory for rendered plots",
+        help="Root output directory; PNGs are written under <output_dir>/<DET>/<VARIANT>/<validation>/<system>/",
     )
     parser.add_argument(
         "--ref-dir",
         default=None,
-        help="Optional reference directory containing baseline ROOT files",
+        help=(
+            "Optional directory containing reference ROOT files for KS comparison. "
+            "Expected filename: <DETECTOR>_<validation>_particleGun_hist.root"
+        ),
     )
     args = parser.parse_args()
 
@@ -202,88 +228,103 @@ def main():
     with open(args.detector_config, "r") as f:
         det_cfg = yaml.safe_load(f)
 
-    detector_name = det_cfg.get("detector", "ALLEGRO")
-    variant_name = det_cfg.get("version", det_cfg.get("variant", "ALLEGRO_o1_v03"))
+    detector_name = det_cfg.get("detector", "UNKNOWN")
+    variant_name = det_cfg.get("version", "default")
     validation_name = det_cfg.get("validation", "general")
 
+    # Parse input files: validation_name=path
     file_map = {}
     for item in args.inputs:
         if "=" in item:
-            k, v = item.split("=", 1)
-            file_map[k] = v
+            key, path = item.split("=", 1)
+            file_map[key] = path
+        else:
+            logger.warning(f"Skipping malformed --inputs entry (expected key=path): {item!r}")
 
-    hist_registries = {k: read_histograms_from_file(v) for k, v in file_map.items()}
+    if not file_map:
+        logger.error("No valid input files parsed from --inputs. Aborting.")
+        sys.exit(1)
 
+    hist_registries = {key: read_histograms_from_file(path) for key, path in file_map.items()}
+
+    # Load reference histograms when a reference directory is provided.
+    # Expected filename convention: <DETECTOR>_<validation>_particleGun_hist.root
     ref_registries = {}
     if args.ref_dir and os.path.exists(args.ref_dir):
-        for k in file_map.keys():
-            ref_path = os.path.join(args.ref_dir, f"{k}.root")
-            if not os.path.exists(ref_path):
-                ref_path = os.path.join(
-                    args.ref_dir, f"{detector_name}_{k}_particleGun_hist.root"
-                )
+        for key in file_map:
+            ref_path = os.path.join(
+                args.ref_dir, f"{detector_name}_{key}_particleGun_hist.root"
+            )
             if os.path.exists(ref_path):
-                ref_registries[k] = read_histograms_from_file(ref_path)
+                ref_registries[key] = read_histograms_from_file(ref_path)
+                logger.info(f"Loaded reference histograms for '{key}' from: {ref_path}")
+            else:
+                logger.warning(f"No reference file found for '{key}' at: {ref_path}")
+    elif args.ref_dir:
+        logger.warning(f"Reference directory does not exist: {args.ref_dir}")
 
     track_collections = det_cfg.get("collections", {}).get("track_collections", [])
-    plot_specs = []
-    for plot in det_cfg.get("plots", []):
+
+    # Build flat list of (histogram_key, title, system) from plot specs in config
+    plot_specs = _resolve_plot_specs(det_cfg.get("plots", []), track_collections)
+
+    plot_count = 0
+    for ds_key, registry in hist_registries.items():
+        ref_registry = ref_registries.get(ds_key, {})
+
+        for spec in plot_specs:
+            histogram = find_histogram(registry, ds_key, spec["key"])
+            if not histogram:
+                logger.debug(f"Histogram '{spec['key']}' not found in registry for '{ds_key}', skipping.")
+                continue
+
+            ref_histogram = find_histogram(ref_registry, ds_key, spec["key"]) if ref_registry else None
+
+            # Output path: <output_dir>/<DETECTOR>/<VARIANT>/<validation>/<system>/
+            target_dir = os.path.join(
+                args.output_dir,
+                detector_name,
+                variant_name,
+                validation_name,
+                spec["system"],
+            )
+
+            generate_plot(
+                hist=histogram,
+                ref_hist=ref_histogram,
+                filename=f"{spec['key']}.png",
+                out_dir=target_dir,
+                config=plotting_cfg,
+                draw_opt="COLZ" if isinstance(histogram, ROOT.TH2) else "HIST",
+                title=f"{detector_name} — {spec['title']}",
+            )
+            plot_count += 1
+
+    logger.info(f"Plotting complete. Saved {plot_count} plot(s) under '{args.output_dir}'.")
+
+
+def _resolve_plot_specs(plots_config: list, track_collections: list) -> list:
+    """Expands plot definitions into a flat list of (key, title, system) dicts.
+
+    Per-collection plots are expanded once for each track collection.
+    """
+    specs = []
+    for plot in plots_config:
         system = plot.get("system", plot.get("subdetector", "general"))
         if plot.get("per_collection"):
             for col in track_collections:
-                plot_specs.append(
-                    {
-                        "key": f"{plot['key']}_{col}",
-                        "title": f"{plot['title']} ({col})",
-                        "system": system,
-                    }
-                )
-        else:
-            plot_specs.append(
-                {
-                    "key": plot["key"],
-                    "title": plot["title"],
+                specs.append({
+                    "key": f"{plot['key']}_{col}",
+                    "title": f"{plot['title']} ({col})",
                     "system": system,
-                }
-            )
-
-    standalone_count = 0
-
-    for ds_key, registry in hist_registries.items():
-        ref_reg = ref_registries.get(ds_key, {})
-
-        for spec in plot_specs:
-            key = spec["key"]
-            histogram = find_histogram(registry, ds_key, key)
-            if histogram:
-                ref_histogram = (
-                    find_histogram(ref_reg, ds_key, key) if ref_reg else None
-                )
-
-                target_dir = os.path.join(
-                    args.output_dir,
-                    detector_name,
-                    variant_name,
-                    validation_name,
-                    spec["system"],
-                )
-
-                plot_title = f"{detector_name} - {spec['title']}"
-
-                generate_plot(
-                    hist=histogram,
-                    ref_hist=ref_histogram,
-                    filename=f"{key}.png",
-                    out_dir=target_dir,
-                    config=plotting_cfg,
-                    draw_opt="COLZ" if isinstance(histogram, ROOT.TH2) else "HIST",
-                    title=plot_title,
-                )
-                standalone_count += 1
-
-    logger.info(
-        f"Plotting completed. Saved {standalone_count} plot(s) to '{args.output_dir}'."
-    )
+                })
+        else:
+            specs.append({
+                "key": plot["key"],
+                "title": plot["title"],
+                "system": system,
+            })
+    return specs
 
 
 if __name__ == "__main__":

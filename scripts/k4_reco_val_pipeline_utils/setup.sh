@@ -3,12 +3,19 @@ source "$(dirname "$0")/utils.sh"
 
 log_info "Performing target-specific cleanup of previous validation outputs..."
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DEFAULT_REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 if [[ -z "${WORKAREA}" ]]; then
     log_error "WORKAREA environment variable is not set! Aborting script to prevent file loss."
     exit 1
 fi
 
-REPO_ROOT="${CI_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
+REPO_ROOT="${CI_PROJECT_DIR:-$DEFAULT_REPO_ROOT}"
+if [[ ! -f "${REPO_ROOT}/scripts/k4_reco_val_pipeline_utils/config_discovery.py" ]]; then
+    log_warn "Repository root '${REPO_ROOT}' is missing the pipeline utilities; falling back to '${DEFAULT_REPO_ROOT}'."
+    REPO_ROOT="$DEFAULT_REPO_ROOT"
+fi
 FLOW_MANIFEST="$WORKAREA/validation_flows.tsv"
 GENERATED_WEB_CONFIG="$WORKAREA/generated_web.yaml"
 

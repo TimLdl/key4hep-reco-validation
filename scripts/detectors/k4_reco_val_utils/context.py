@@ -1,3 +1,12 @@
+"""Per-event context dataclass and builder.
+
+The :class:`EventContext` holds all per-event invariants that processors need,
+extracted once at the start of each event to avoid redundant lookups.
+
+Building a context may return ``None`` if no primary generator particle is
+found in the event (the engine skips such events).
+"""
+
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 

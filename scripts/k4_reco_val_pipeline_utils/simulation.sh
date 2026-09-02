@@ -22,6 +22,9 @@ while IFS=$'\t' read -r detector version slug validation config_path config_dir 
     fi
 
     (
+        # sim_digi.sh uses $VERSION to locate the FCC-config ctest script.
+        # Export it from the manifest's version column before sourcing.
+        export VERSION="$version"
         source "$sim_script" \
             --nEvents "${NUMBER_OF_EVENTS}" \
             --particle "$particle" \

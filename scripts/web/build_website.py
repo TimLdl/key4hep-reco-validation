@@ -1,3 +1,19 @@
+"""CLI entrypoint for the key4hep reconstruction validation website builder.
+
+Loads the generated web configuration YAML (written by ``setup.sh`` via
+``config_discovery.py``) and invokes :class:`~web.web_builder.WebBuilder`
+to produce a self-contained static HTML site from the plot output directory.
+
+Usage::
+
+    python3 build_website.py \\
+        --web-config  /workarea/generated_web.yaml \\
+        --templates-dir web/templates \\
+        --static-dir    web/static \\
+        --plots-dir     /workarea/plots \\
+        --output-dir    /workarea/plots
+"""
+
 import argparse
 import sys
 from pathlib import Path
