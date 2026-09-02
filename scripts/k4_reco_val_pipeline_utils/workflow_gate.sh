@@ -38,7 +38,8 @@ while IFS=$'\t' read -r detector version slug validation config_path config_dir 
     flow_dir="$WORKAREA/$detector/$version"
     digi_file="${flow_dir}/${detector}_${output_tag}_particleGun_digi.root"
     hist_file="${flow_dir}/${detector}_${validation}_particleGun_hist.root"
-    plot_dir="${PLOT_ROOT}/$(normalize_slug "$detector")/$(normalize_slug "$version")/$(normalize_slug "$validation")"
+    plot_dir="${PLOT_ROOT}/${detector}/${version}/$(normalize_slug "$validation")"
+    legacy_plot_dir="${PLOT_ROOT}/$(normalize_slug "$detector")/$(normalize_slug "$version")/$(normalize_slug "$validation")"
 
     digi_status="missing"
     hist_status="missing"
@@ -70,6 +71,17 @@ while IFS=$'\t' read -r detector version slug validation config_path config_dir 
         else
             flow_ok="false"
             issue_list+=("plot directory exists but contains no PNG files: ${plot_dir}")
+        fi
+    elif [[ -d "$legacy_plot_dir" ]]; then
+        flow_plot_count=$(find "$legacy_plot_dir" -type f -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
+        plot_status="$flow_plot_count"
+        if [[ "$flow_plot_count" -gt 0 ]]; then
+            ((flows_with_plots += 1))
+            log_warn "Using legacy slugged plot directory for ${flow_label}: ${legacy_plot_dir}; re-run plot stage to create ${plot_dir}"
+            issue_list+=("using legacy slugged plot directory: ${legacy_plot_dir}; re-run plot stage to create ${plot_dir}")
+        else
+            flow_ok="false"
+            issue_list+=("legacy plot directory exists but contains no PNG files: ${legacy_plot_dir}")
         fi
     else
         flow_ok="false"

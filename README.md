@@ -165,7 +165,7 @@ The shared extraction runner is [`hist_runner.py`](/eos/home-t/tleidel/key4hep-r
 Plot images are written under:
 
 ```text
-<plots-root>/<detector_slug>/<variant_slug>/<validation_slug>/<system_slug>/*.png
+<plots-root>/<DETECTOR>/<VARIANT>/<validation_slug>/<system_slug>/*.png
 ```
 
 The website stage reads this structure directly.
