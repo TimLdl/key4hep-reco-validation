@@ -1,3 +1,19 @@
+"""Histogram extraction execution engine.
+
+Orchestrates the full event loop over a PODIO simulation file:
+
+1. Loads detector configuration (YAML).
+2. Resolves histogram definitions from the ``plots`` config block.
+3. Dynamically imports and runs processor functions from the ``processors`` config block.
+4. Calls :func:`build_and_fill_histograms` to produce ROOT TH1 objects.
+5. Writes the histogram registry to a ROOT file.
+
+Entry points:
+
+- :func:`run_detector_pipeline` — used by ``hist.py`` / ``hist_runner.py``
+- :func:`analyze_detector_simulation_file` — used internally by :func:`run_detector_pipeline`
+"""
+
 import importlib
 import sys
 from typing import Callable, List, Optional

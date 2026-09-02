@@ -1,3 +1,30 @@
+"""Static website builder for the key4hep reconstruction validation dashboard.
+
+Scans the plot output directory produced by plotting.py, groups PNGs into a
+structured metadata tree, and renders Jinja2 HTML templates into a self-contained
+static site.
+
+Expected plot directory structure (written by plotting.py)::
+
+    plots_dir/<DETECTOR>/<VARIANT>/<validation>/<system>/<plot_key>.png
+
+The ``validation`` component (e.g. ``electron``) is resolved to a display
+particle name via :data:`PARTICLE_MAP`. The ``system`` component becomes the
+*Subdetector* grouping in the dashboard hierarchy.
+
+Generated site structure::
+
+    output_dir/
+    ├── index.html
+    ├── static/              (CSS, JS, images)
+    └── detectors/
+        └── <detector_slug>/
+            ├── index.html
+            └── <particle_slug>/
+                ├── index.html
+                └── plots/<system>/General/General/<plot>.png
+"""
+
 import os
 import shutil
 import sys
@@ -110,62 +137,53 @@ class WebBuilder:
             logger.error(f"Static directory NOT FOUND at: '{resolved_static}'")
 
     def _parse_plot_metadata(self, img_path: Path, detector_root: Path) -> dict:
-        """Parses particle, subdetector, algorithm, and module type dynamically regardless of depth."""
+        """Parses particle, subdetector, algorithm, and module hierarchy from a plot path.
+
+        The expected layout relative to ``detector_root`` is::
+
+            <validation>/<system>/[<algorithm>/[<module>/]]<plot_key>.png
+
+        where ``validation`` maps to a particle display name via :data:`PARTICLE_MAP`.
+        If the first directory component is not a known particle name, the fallback
+        treats it as a direct subdetector path with ``particle = "general"``.
+
+        Returns a metadata dict with keys: file_path, filename, title, particle,
+        particle_slug, subdetector, algorithm, module_type, subpath_slugs, rel_subpath.
+        """
         try:
             rel_path = img_path.relative_to(detector_root)
-            dir_parts = [p.lower() for p in rel_path.parts[:-1]]
         except ValueError:
-            dir_parts = []
+            rel_path = img_path
 
-        particle_display = "General"
+        dir_parts = [p.lower() for p in rel_path.parts[:-1]]
+
         particle_slug = "general"
+        particle_display = "General"
         subdetector_display = "General"
         algorithm_display = "General"
         module_type_display = "General"
 
-        # Dynamically locate which directory level contains a particle name
-        p_idx = -1
-        for idx, part in enumerate(dir_parts):
-            if part in PARTICLE_MAP:
-                p_idx = idx
-                particle_slug = part
-                particle_display = PARTICLE_MAP[part]
-                break
-
-        if p_idx != -1:
-            # Hierarchy relative to particle folder position:
-            # dir_parts[p_idx + 1] -> Subdetector (e.g., calorimetry)
-            # dir_parts[p_idx + 2] -> Algorithm (e.g., dual_readout / lar_calorimeter)
-            # dir_parts[p_idx + 3] -> Module/Region (e.g., cherenkov / barrel)
-            if p_idx + 1 < len(dir_parts):
-                subdetector_display = dir_parts[p_idx + 1].replace("_", " ").title()
-            if p_idx + 2 < len(dir_parts):
-                algorithm_display = dir_parts[p_idx + 2].replace("_", " ").title()
-            if p_idx + 3 < len(dir_parts):
-                module_type_display = dir_parts[p_idx + 3].replace("_", " ").title()
-        else:
-            # Fallback if particle is not a dedicated parent directory
-            full_str = str(rel_path).lower()
-            for p_key, p_name in PARTICLE_MAP.items():
-                if p_key in full_str:
-                    particle_slug = p_key
-                    particle_display = p_name
-                    break
-
-            # Filter out detector version wrappers like IDEA_o1_v03
-            clean_parts = [
-                p
-                for p in dir_parts
-                if not ("_o" in p or "_v" in p or "allegro" in p or "idea" in p)
-            ]
-            if len(clean_parts) >= 1:
-                subdetector_display = clean_parts[0].replace("_", " ").title()
-            if len(clean_parts) >= 2:
-                algorithm_display = clean_parts[1].replace("_", " ").title()
-            if len(clean_parts) >= 3:
-                module_type_display = clean_parts[2].replace("_", " ").title()
-
-        clean_title = img_path.stem.replace("_", " ").title()
+        if dir_parts and dir_parts[0] in PARTICLE_MAP:
+            # Standard layout: <particle>/<system>/[<algo>/[<module>/]]
+            particle_slug = dir_parts[0]
+            particle_display = PARTICLE_MAP[particle_slug]
+            if len(dir_parts) >= 2:
+                subdetector_display = dir_parts[1].replace("_", " ").title()
+            if len(dir_parts) >= 3:
+                algorithm_display = dir_parts[2].replace("_", " ").title()
+            if len(dir_parts) >= 4:
+                module_type_display = dir_parts[3].replace("_", " ").title()
+        elif dir_parts:
+            # Fallback: no particle prefix — first dir is treated as subdetector
+            logger.debug(
+                f"Plot path '{rel_path}' has no recognized particle prefix; "
+                f"treating first component as subdetector."
+            )
+            subdetector_display = dir_parts[0].replace("_", " ").title()
+            if len(dir_parts) >= 2:
+                algorithm_display = dir_parts[1].replace("_", " ").title()
+            if len(dir_parts) >= 3:
+                module_type_display = dir_parts[2].replace("_", " ").title()
 
         s_slug = subdetector_display.lower().replace(" ", "_")
         a_slug = algorithm_display.lower().replace(" ", "_")
@@ -174,7 +192,7 @@ class WebBuilder:
         return {
             "file_path": img_path,
             "filename": img_path.name,
-            "title": clean_title,
+            "title": img_path.stem.replace("_", " ").title(),
             "particle": particle_display,
             "particle_slug": particle_slug,
             "subdetector": subdetector_display,

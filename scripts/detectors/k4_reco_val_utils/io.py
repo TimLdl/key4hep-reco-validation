@@ -1,3 +1,15 @@
+"""PODIO and ROOT I/O utilities.
+
+Provides thin wrappers around PODIO and ROOT file operations with consistent
+error handling and logging.
+
+Functions:
+
+- :func:`open_podio_root_reader` — opens a PODIO ROOT file for event-by-event reading
+- :func:`write_histograms_to_file` — writes a histogram registry dict to a ROOT file
+- :func:`read_histograms_from_file` — reads all TH1/TH2 objects from a ROOT file into a dict
+"""
+
 import os
 import podio
 import ROOT
