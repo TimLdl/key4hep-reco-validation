@@ -18,6 +18,10 @@ log_error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 log_success() { echo -e "${GREEN}[OK]${NC} $*"; }
 log_warn()    { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
+normalize_slug() {
+    local value="$1"
+    printf '%s' "$value" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g; s/^_+//; s/_+$//; s/_+/_/g'
+}
 
 # --- Defaults ---
 DATA_DIR="${DATA_DIR:-$REPO_ROOT/data}"
@@ -74,7 +78,7 @@ while IFS=$'\t' read -r detector version slug validation config_path config_dir 
 
     digi_file="$DATA_DIR/$detector/$version/${detector}_${output_tag}_particleGun_digi.root"
     hist_file="$HIST_ROOT/$detector/$version/${detector}_${validation}_particleGun_hist.root"
-    plot_dir="$PLOT_ROOT/$slug"
+    plot_dir="$PLOT_ROOT/$detector/$version/$(normalize_slug "$validation")"
     variant_ref_dir="$REF_DIR/$detector/$version"
 
     mkdir -p "$(dirname "$hist_file")"

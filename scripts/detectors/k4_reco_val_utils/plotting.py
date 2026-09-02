@@ -3,7 +3,7 @@
 Produces PNG images from ROOT histogram files, organized into a directory
 hierarchy consumed by the web builder:
 
-    <output_dir>/<detector_slug>/<variant_slug>/<validation_slug>/<system_slug>/<plot_key>.png
+    <output_dir>/<DETECTOR>/<VARIANT>/<validation_slug>/<system_slug>/<plot_key>.png
 
 Usage (CLI)::
 
@@ -216,7 +216,7 @@ def main():
     parser.add_argument(
         "--output-dir",
         default="output/plots",
-        help="Root output directory; PNGs are written under <output_dir>/<detector_slug>/<variant_slug>/<validation_slug>/<system_slug>/",
+        help="Root output directory; PNGs are written under <output_dir>/<DETECTOR>/<VARIANT>/<validation_slug>/<system_slug>/",
     )
     parser.add_argument(
         "--ref-dir",
@@ -240,8 +240,6 @@ def main():
     variant_name = det_cfg.get("version", "default")
     validation_name = det_cfg.get("validation", "general")
 
-    detector_slug = normalize_slug(detector_name)
-    variant_slug = normalize_slug(variant_name)
     validation_slug = normalize_slug(validation_name)
 
     # Parse input files: validation_name=path
@@ -292,11 +290,12 @@ def main():
 
             ref_histogram = find_histogram(ref_registry, ds_key, spec["key"]) if ref_registry else None
 
-            # Output path: <output_dir>/<slugified_detector>/<slugified_variant>/<slugified_validation>/<system>/
+            # Detector and variant directory names intentionally match config and
+            # workarea names so downstream web/pipeline stages read the same tree.
             target_dir = os.path.join(
                 args.output_dir,
-                detector_slug,
-                variant_slug,
+                detector_name,
+                variant_name,
                 validation_slug,
                 normalize_slug(spec["system"]),
             )
