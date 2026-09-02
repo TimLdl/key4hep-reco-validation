@@ -1,0 +1,28 @@
+{% extends "base.html.j2" %}
+
+{% block content %}
+<section class="hero-banner">
+  <div class="hero-header-line">
+    <h1>{{ detector.name }}</h1>
+    <span class="badge badge-flash">{{ detector.version }}</span>
+  </div>
+  <p>{{ detector.description }}</p>
+  <div class="hero-meta">
+    <span><strong>Configuration Path:</strong> <code>{{ detector.config_path }}</code></span>
+  </div>
+</section>
+
+<h2 class="section-heading">Validation Dashboards by Particle Type</h2>
+
+<div class="grid-2">
+  {% for p in detector.particles %}
+  <div class="card particle-summary-card">
+    <h3>{{ p.name }}</h3>
+    <p>{{ p.count }} validation plot(s) available.</p>
+    <a href="{{ root_rel }}detectors/{{ detector.id }}/{{ p.slug }}/index.html" class="btn btn-primary">
+      View {{ p.name }} Plots &rarr;
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

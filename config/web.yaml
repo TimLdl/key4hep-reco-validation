@@ -1,0 +1,16 @@
+site_title: "key4hep Reconstruction Validation"
+organization: "CERN / FCC Collaboration"
+footer_text: "key4hep Reconstruction Validation"
+
+detectors:
+  - id: "IDEA"
+    name: "IDEA Detector"
+    version: "IDEA_o1_vo3"
+    description: "Innovative Detector for Electron-Positron Accelerator"
+    config_path: "config/IDEA/IDEA_o1_vo3/config.yaml"
+
+  - id: "ALLEGRO"
+    name: "ALLEGRO Detector"
+    version: "ALLEGRO_o1_v03"
+    description: "A Lepton Lepton collider Experiment with Granular Read-Out"
+    config_path: "config/ALLEGRO/ALLEGRO_o1_v03/config.yaml"

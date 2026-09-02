@@ -1,0 +1,31 @@
+{% extends "base.html.j2" %}
+
+{% block content %}
+<section class="hero-banner">
+  <h1>{{ config.site_title }}</h1>
+  <p>{{ config.organization }} — {{ config.footer_text }}</p>
+</section>
+
+<h2 class="section-heading">Available Detector Concepts</h2>
+
+<div class="grid-2">
+  {% for det in detectors %}
+  <div class="card detector-card">
+    <div class="detector-card-header">
+      <h3>{{ det.name }}</h3>
+      <span class="badge badge-flash">{{ det.version }}</span>
+    </div>
+    <p class="detector-desc">{{ det.description }}</p>
+    <div class="detector-meta">
+      <span class="meta-label">Config:</span>
+      <code class="config-code">{{ det.config_path }}</code>
+    </div>
+    <div class="detector-card-footer">
+      <a href="{{ root_rel }}detectors/{{ det.id }}/index.html" class="btn btn-primary">
+        Explore {{ det.id }} Validation Plots &rarr;
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

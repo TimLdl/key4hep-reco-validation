@@ -1,0 +1,242 @@
+detector: "IDEA"
+version: "IDEA_o1_v03"
+
+# Global detector properties
+detector_parameters:
+  magnetic_field_tesla: 2.0
+  sigma_multiplier: 3.0
+
+# Subdetector-specific properties and readout configs
+subdetectors:
+  drift_chamber:
+    max_pseudorapidity: 0.88
+    total_layers: 112
+    superlayer_bit_name: "superlayer"
+    layer_bit_name: "layer"
+    bitfield_string: "system:5,superlayer:5,layer:4,nphi:11,stereosign:-2"
+
+collections:
+  mc_particles: "MCParticles"
+  track_collections:
+    - "FittedTracks"
+    - "FittedTracksWithFilteredHits"
+  track_mc_assoc: "TracksFromGenParticlesAssociation"
+  dch_digis: "DCHDigis"
+  dch_dndx: "DCHdNdxCollection"
+  vtx_digis:
+    - "VTXBDigis"
+    - "VTXDDigis"
+  si_wrapper_digis:
+    - "SiWrBDigis"
+    - "SiWrDDigis"
+  muon_tracker_hits: "MSTrackerHits"
+  calo_cherenkov: "DRcaloSiPMreadoutDigiHit"
+  calo_scintillation: "DRcaloSiPMreadoutDigiHit_scint"
+  topoclusters: "TopoClusterAll"
+
+# List of histograms specific to IDEA validation
+plots:
+  - key: "vtx_digi_hits_per_event"
+    title: "Vertex Detector Hits per Event"
+    x_title: "Vertex Detector Hits per Event"
+    type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 50.0
+    system: "vertex"
+    technology: "silicon_pixel"
+    region: "barrel_endcap"
+    apply_eta_cut: true
+
+  - key: "vtx_hits_per_layer"
+    title: "Vertex Detector Hits per Layer"
+    x_title: "Layer Index"
+    type: "integer"
+    bins: 10
+    xmin: 0.0
+    xmax: 10.0
+    system: "vertex"
+    technology: "silicon_pixel"
+    region: "barrel_endcap"
+    apply_eta_cut: true
+
+  - key: "siwr_digi_hits_per_event"
+    title: "Silicon Wrapper Hits per Event"
+    x_title: "Silicon Wrapper Hits per Event"
+    type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 50.0
+    system: "tracking"
+    technology: "silicon_wrapper"
+    region: "barrel_endcap"
+    apply_eta_cut: true
+
+  - key: "drift_chamber_hits_per_layer"
+    title: "DCH Hits per Layer"
+    x_title: "Number of Hits per Layer"
+    type: "integer"
+    bins: 5
+    xmin: 0.0
+    xmax: 5.0
+    system: "tracking"
+    technology: "drift_chamber"
+    region: "barrel"
+    apply_eta_cut: true
+
+  # - key: "dch_dndx_value"
+  #   title: "Drift Chamber dN/dx Distribution"
+  #   x_title: "DCH dN/dx [clusters/cm]"
+  #   type: "asymmetric"
+  #   bins: 12
+  #   xmin: 0.0
+  #   xmax: 5.0
+  #   system: "tracking"
+  #   technology: "drift_chamber"
+  #   region: "barrel"
+  #   apply_eta_cut: false
+
+  - key: "calorimeter_linearity_cherenkov"
+    title: "Cherenkov Linearity [E_{reco}/E_{true}]"
+    x_title: "E_{reco} / E_{true}"
+    type: "symmetric"
+    bins: 12
+    xmin: 0.0
+    xmax: 2.0
+    system: "calorimetry"
+    technology: "dual_readout"
+    region: "combined"
+    signal_type: "cherenkov"
+    apply_eta_cut: false
+
+  - key: "calorimeter_linearity_scintillation"
+    title: "Scintillation Linearity [E_{reco}/E_{true}]"
+    x_title: "E_{reco} / E_{true}"
+    type: "symmetric"
+    bins: 12
+    xmin: 0.0
+    xmax: 2.0
+    system: "calorimetry"
+    technology: "dual_readout"
+    region: "combined"
+    signal_type: "scintillation"
+    apply_eta_cut: false
+
+  - key: "topocluster_count"
+    title: "TopoCluster Multiplicity"
+    x_title: "Number of TopoClusters per Event"
+    type: "integer"
+    bins: 12
+    xmin: 0.0
+    xmax: 125.0
+    system: "calorimetry"
+    technology: "topocluster"
+    region: "global"
+    apply_eta_cut: false
+
+  - key: "topocluster_leading_energy"
+    title: "Highest Cluster Energy Profile"
+    x_title: "Highest Cluster Energy per Event [GeV]"
+    type: "asymmetric"
+    bins: 12
+    xmin: 0.0
+    xmax: 25.0
+    system: "calorimetry"
+    technology: "topocluster"
+    region: "global"
+    apply_eta_cut: false
+
+  - key: "topocluster_delta_phi"
+    title: "TopoCluster #Delta#phi (Cluster - MCParticle)"
+    x_title: "#Delta#phi [rad]"
+    type: "symmetric"
+    bins: 50
+    xmin: -0.25
+    xmax: 0.25
+    system: "calorimetry"
+    technology: "topocluster"
+    region: "global"
+    apply_eta_cut: false
+
+  - key: "topocluster_delta_theta"
+    title: "TopoCluster #Delta#theta (Cluster - MCParticle)"
+    x_title: "#Delta#theta [rad]"
+    type: "symmetric"
+    bins: 50
+    xmin: -0.25
+    xmax: 0.25
+    system: "calorimetry"
+    technology: "topocluster"
+    region: "global"
+    apply_eta_cut: false
+
+  - key: "muon_system_hits_per_event"
+    title: "Muon System Hits per Event"
+    x_title: "Muon System Hits per Event"
+    type: "integer"
+    bins: 10
+    xmin: 0.0
+    xmax: 10.0
+    system: "muon_system"
+    technology: "muon_chambers"
+    region: "barrel_endcap"
+    apply_eta_cut: true
+
+  - key: "tracker_hits_per_track"
+    title: "Tracker Hits per Track"
+    x_title: "Number of Tracker Hits per Track"
+    type: "asymmetric"
+    bins: 10
+    xmin: 0.0
+    xmax: 200.0
+    per_collection: true
+    system: "tracking"
+    technology: "track_reconstruction"
+    region: "global"
+    apply_eta_cut: true
+
+  - key: "reconstructed_tracks_per_event"
+    title: "Reconstructed Tracks per Event"
+    x_title: "Reconstructed Tracks per Event"
+    type: "integer"
+    bins: 12
+    xmin: 0.0
+    xmax: 5.0
+    per_collection: true
+    system: "tracking"
+    technology: "track_reconstruction"
+    region: "global"
+    apply_eta_cut: false
+
+  - key: "track_fit_chi2_over_ndf"
+    title: "Track Fit Quality #chi^{2}/ndf"
+    x_title: "#chi^{2} / ndf"
+    type: "asymmetric"
+    bins: 12
+    xmin: 0.0
+    xmax: 10.0
+    per_collection: true
+    system: "tracking"
+    technology: "track_reconstruction"
+    region: "global"
+    apply_eta_cut: false
+
+  - key: "momentum_resolution"
+    title: "Momentum Resolution #Delta p/p_{true}"
+    x_title: "(p_{reco} - p_{true}) / p_{true}"
+    type: "symmetric"
+    bins: 25
+    xmin: -0.25
+    xmax: 0.25
+    per_collection: true
+    system: "tracking"
+    technology: "track_reconstruction"
+    region: "global"
+    apply_eta_cut: false
+
+processors:
+  - detectors.IDEA.IDEA_o1_v03.processors.process_digi_and_occupancy
+  # - detectors.IDEA.IDEA_o1_v03.processors.process_drift_chamber_dndx
+  - detectors.IDEA.IDEA_o1_v03.processors.process_tracking_performance
+  - detectors.IDEA.IDEA_o1_v03.processors.process_dual_readout_calorimetry
+  - detectors.IDEA.IDEA_o1_v03.processors.process_topoclusters

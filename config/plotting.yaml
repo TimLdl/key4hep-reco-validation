@@ -1,0 +1,45 @@
+canvas:
+    width: 800
+    height: 600
+    margin_top: 0.10
+    margin_bottom: 0.14
+    margin_left: 0.16
+    margin_right: 0.06
+    right_margin_2d: 0.15
+
+style:
+    canvas_color: 0 # ROOT.kWhite
+    pad_color: 0 # ROOT.kWhite
+    opt_stat: 0
+    opt_title: 0
+    font_type: 42 # Helvetica
+    label_size: 0.045
+    title_size: 0.055
+    line_width: 3
+    y_axis_scale: 1.25 # Overhead factor for max Y scale
+
+ks_test:
+    confidence_level: 0.05
+    failed_color: "#FF0000"
+    frame_line_width: 3
+
+legend:
+    x1: 0.48
+    y1: 0.65
+    x2: 0.92
+    y2: 0.88
+    border_size: 0
+    fill_style: 0
+    text_font: 42
+    text_size: 0.030
+
+sample_styles:
+    data:
+        color: "#0000FF" # Blue
+        style: 1 # Solid line
+        label: "Data"
+
+    reference:
+        color: "#0F124A" # Dark navy
+        style: 2 # Dashed line
+        label: "Reference"
