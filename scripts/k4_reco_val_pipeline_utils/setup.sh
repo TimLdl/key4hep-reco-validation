@@ -22,7 +22,8 @@ GENERATED_WEB_CONFIG="$WORKAREA/generated_web.yaml"
 log_info "Repository root: $REPO_ROOT"
 
 rm -rf "${WORKAREA}/FCC-config"
-rm -f "${WORKAREA}/validation_flows.tsv" "${WORKAREA}/repo_root.txt"       "${WORKAREA}/generated_web.yaml" "${WORKAREA}/metadata.yaml"
+rm -f "${WORKAREA}/validation_flows.tsv" "${WORKAREA}/repo_root.txt" "${WORKAREA}/generated_web.yaml" "${WORKAREA}/metadata.yaml"
+rm -rf "${WORKAREA}/.pipeline-state"
 
 if [[ -n "${PLOTAREA}" ]]; then
     rm -rf "${WORKAREA:?}/${PLOTAREA}"
