@@ -1,5 +1,15 @@
+"""Per-event context dataclass and builder.
+
+The :class:`EventContext` holds all per-event invariants that processors need,
+extracted once at the start of each event to avoid redundant lookups.
+
+Building a context may return ``None`` if no primary generator particle is
+found in the event (the engine skips such events).
+"""
+
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
+import logging
 
 
 @dataclass
@@ -18,6 +28,7 @@ def build_event_context(
     config: Dict[str, Any],
     bitfield_decoder: Any = None,
     max_eta: Optional[float] = None,
+    logger: Optional[logging.Logger] = None,
 ) -> Optional[EventContext]:
     """Extracts per-event invariants and constructs an EventContext object."""
     from detectors.k4_reco_val_utils.helpers import (
@@ -25,9 +36,9 @@ def build_event_context(
         extract_track_to_mc_map,
     )
 
-    collections_cfg = config.get("collections", {})
-    mc_col_name = collections_cfg.get("mc_particles", "MCParticles")
-    mc_particles = event_data.get(mc_col_name) or []
+    collections_config = config.get("collections", {})
+    mc_particle_collection = collections_config.get("mc_particles", "MCParticles")
+    mc_particles = event_data.get(mc_particle_collection) or []
 
     primary_mc = next((p for p in mc_particles if p.getGeneratorStatus() == 1), None)
     if not primary_mc:
@@ -36,10 +47,12 @@ def build_event_context(
     true_mc_energy = primary_mc.getEnergy()
     is_accepted_eta, _ = evaluate_particle_eta_acceptance(primary_mc, max_eta)
 
-    assoc_col = collections_cfg.get(
+    association_collection = collections_config.get(
         "track_mc_assoc", "TracksFromGenParticlesAssociation"
     )
-    track_to_mc_map = extract_track_to_mc_map(event_data.get(assoc_col))
+    track_to_mc_map = extract_track_to_mc_map(
+        event_data.get(association_collection), logger
+    )
 
     return EventContext(
         event_data=event_data,

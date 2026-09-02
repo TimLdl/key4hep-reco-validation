@@ -1,67 +1,85 @@
 #!/bin/bash
-source "$(dirname "$0")/utils.sh"
-source "$WORKAREA/version_array.txt"
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/utils.sh" || exit 1
+REPO_ROOT="$(pipeline_repo_root)"
+FLOW_MANIFEST="$WORKAREA/validation_flows.tsv"
 
-COMPARISON_FAIL=0
+if [[ ! -f "$FLOW_MANIFEST" ]]; then
+    log_error "Validation flow manifest not found: $FLOW_MANIFEST"
+    exit 1
+fi
 
-for VERSION in "${VERSION_ARRAY[@]}"; do
-    [ -z "$VERSION" ] && continue
-    GEOMETRY="${VERSION%%_*}"
-    cd "$WORKAREA/$GEOMETRY/$VERSION" || continue
-    log_info "Plotting Histograms: $GEOMETRY ($VERSION)"
+selected_count=0
+success_count=0
+warning_count=0
+declare -a warning_messages=()
+declare -a failure_messages=()
 
-    TARGET_PLOT_DIR="$WORKAREA/$PLOTAREA/$GEOMETRY/$VERSION"
+while IFS=$'\t' read -r detector version _slug validation config_path _config_dir _config_rel_dir _particle _output_tag _energy _seed _n_events _run_track_validation _sim_script _hist_script; do
+    [[ -z "$detector" ]] && continue
+    ((selected_count += 1))
 
-    if [ -d "$TARGET_PLOT_DIR" ]; then
-        log_warn "Plot area directory already exists. Purging obsolete data..."
-        rm -rf "$TARGET_PLOT_DIR"
-    fi
-    mkdir -p "$TARGET_PLOT_DIR"
-
-    # Dynamically build plot input array from active particles
-    IFS=',' read -r -a raw_particles <<< "${PARTICLES:-e-,mu-}"
-    PLOT_INPUTS=()
-
-    for p in "${raw_particles[@]}"; do
-        p_clean="${p//[[:space:]-+]/}"
-        [[ -z "$p_clean" ]] && continue
-
-        # Map short particle codes to plot legend keys
-        case "$p_clean" in
-            e|electron) label="electron"; short="e" ;;
-            mu|muon) label="muon"; short="mu" ;;
-            pi|pion) label="pion"; short="pi" ;;
-            gamma|photon) label="gamma"; short="gamma" ;;
-            *) label="$p_clean"; short="$p_clean" ;;
-        esac
-
-        hist_file="${GEOMETRY}_${short}_particleGun_hist.root"
-
-        if [[ -f "$hist_file" ]]; then
-            PLOT_INPUTS+=("${label}=${hist_file}")
-        else
-            log_warn "Expected histogram file missing for ${label}: ${hist_file}"
-        fi
-    done
-
-    if [[ ${#PLOT_INPUTS[@]} -eq 0 ]]; then
-        log_error "No valid ROOT histogram files found to plot for $GEOMETRY ($VERSION)!"
-        COMPARISON_FAIL=1
+    flow_dir="$WORKAREA/$detector/$version"
+    if ! mkdir -p "$flow_dir"; then
+        message="Could not create work directory '${flow_dir}'"
+        log_error "$message"
+        failure_messages+=("$message")
         continue
     fi
 
-    log_info "Executing data plotting runner engine with inputs: ${PLOT_INPUTS[*]}"
-    python "$WORKAREA/key4hep-reco-validation/scripts/detectors/k4_reco_val_utils/plotting.py" \
-        --inputs "${PLOT_INPUTS[@]}" \
-        --detector-config "$WORKAREA/key4hep-reco-validation/config/$GEOMETRY/$VERSION/config.yaml" \
-        --style-config "$WORKAREA/key4hep-reco-validation/config/plotting.yaml" \
-        --output-dir "$TARGET_PLOT_DIR"
-
-    cmd_status=$?
-    if [[ $cmd_status -ne 0 ]]; then
-        log_error "Plotting rendering engine failed for $VERSION!"
-        COMPARISON_FAIL=1
-    else
-        log_success "Plot execution completed successfully."
+    if ! pushd "$flow_dir" > /dev/null; then
+        message="Could not enter work directory '${flow_dir}'"
+        log_error "$message"
+        failure_messages+=("$message")
+        continue
     fi
-done
+
+    hist_file="${detector}_${validation}_particleGun_hist.root"
+    ref_dir="$WORKAREA/$REFERENCE_SAMPLE/$detector/$version"
+
+    if [[ ! -f "$hist_file" ]]; then
+        message="Missing histogram input for ${detector} ${version} / ${validation}: ${hist_file}"
+        log_warn "$message"
+        warning_messages+=("$message")
+        ((warning_count += 1))
+        popd > /dev/null || exit
+        continue
+    fi
+
+    log_info "Plotting validation flow '${validation}' for ${detector} ${version} using $(basename "$config_path")"
+
+    ref_args=()
+    if [[ "$MAKE_REFERENCE_SAMPLE" != "yes" && -d "$ref_dir" ]]; then
+        ref_args=(--ref-dir "$ref_dir")
+    fi
+
+    python3 "${REPO_ROOT}/scripts/detectors/k4_reco_val_utils/plotting.py" \
+        --inputs "${validation}=${hist_file}" \
+        --detector-config "$config_path" \
+        --style-config "${REPO_ROOT}/config/plotting.yaml" \
+        --output-dir "$WORKAREA/$PLOTAREA" \
+        "${ref_args[@]}"
+
+    command_status=$?
+    if [[ $command_status -ne 0 ]]; then
+        message="Plotting failed for ${detector} ${version} / ${validation} (exit code ${command_status})"
+        log_warn "$message"
+        warning_messages+=("$message")
+        ((warning_count += 1))
+    else
+        log_success "Plots generated for validation flow '${validation}' (${detector} ${version})."
+        ((success_count += 1))
+    fi
+
+    popd > /dev/null || exit
+done < <(select_flow_rows "$FLOW_MANIFEST")
+
+finalize_flow_stage \
+    "plotting" \
+    "Plot" \
+    "Plot generation" \
+    "$selected_count" \
+    "$success_count" \
+    "$warning_count" \
+    warning_messages \
+    failure_messages
+exit $?

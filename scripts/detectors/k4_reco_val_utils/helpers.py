@@ -1,6 +1,21 @@
+"""Shared helper utilities for histogram building, ROOT styling, and configuration parsing.
+
+This module is imported by both the histogram extraction pipeline (``engine.py``)
+and the plotting engine (``plotting.py``). All functions are detector-agnostic.
+
+Key function groups:
+
+- **Histogram building**: :func:`resolve_histogram_definitions`, :func:`build_and_fill_histograms`
+- **Config discovery**: :func:`discover_validation_configs`
+- **ROOT helpers**: :func:`apply_root_graphics_style`, :func:`optimize_axis_ticks`, :func:`draw_title_latex`
+- **KS test**: :func:`compute_ks_test`
+- **Physics utilities**: :func:`evaluate_particle_eta_acceptance`, :func:`calculate_track_momentum`
+- **Event data access**: :func:`extract_track_to_mc_map`, :func:`get_collection_hits`
+- **Detector geometry**: :func:`init_bitfield_coder`
+"""
+
 import math
 import os
-import shutil
 import sys
 from pathlib import Path
 from dd4hep import dd4hep
@@ -195,13 +210,18 @@ def evaluate_particle_eta_acceptance(primary_mc, max_eta=None):
 def init_bitfield_coder(config, logger=None):
     """Initializes DD4hep BitFieldCoder from configuration parameters."""
     geom_cfg = config.get("geometry", {})
-    det_params = config.get("detector_parameters", {})
+    detector_parameters = config.get("detector_parameters", {})
 
-    bitfield_str = geom_cfg.get("bitfield") or det_params.get("bitfield_string")
+    bitfield_str = geom_cfg.get("bitfield") or detector_parameters.get(
+        "bitfield_string"
+    )
     if not bitfield_str:
-        for sub_cfg in config.get("subdetectors", {}).values():
-            if isinstance(sub_cfg, dict) and "bitfield_string" in sub_cfg:
-                bitfield_str = sub_cfg["bitfield_string"]
+        for subdetector_config in config.get("subdetectors", {}).values():
+            if (
+                isinstance(subdetector_config, dict)
+                and "bitfield_string" in subdetector_config
+            ):
+                bitfield_str = subdetector_config["bitfield_string"]
                 break
 
     if not bitfield_str:
@@ -225,8 +245,8 @@ def init_bitfield_coder(config, logger=None):
 def resolve_histogram_definitions(config, logger=None):
     """Expands YAML plot definitions based on collection parameters."""
     histo_defs = {}
-    collections_cfg = config.get("collections", {})
-    track_collections = collections_cfg.get("track_collections", [])
+    collections_config = config.get("collections", {})
+    track_collections = collections_config.get("track_collections", [])
 
     for plot in config.get("plots", []):
         key = plot["key"]
@@ -268,27 +288,36 @@ def resolve_histogram_definitions(config, logger=None):
     return histo_defs
 
 
-def extract_track_to_mc_map(assoc_collection):
+def extract_track_to_mc_map(assoc_collection, logger=None):
     """Parses track-to-MC truth association links into an object-ID map."""
     track_to_mc_map = {}
     if not assoc_collection:
         return track_to_mc_map
 
-    for link in assoc_collection:
-        try:
-            src, tgt = (
-                (link.getRec(), link.getSim())
-                if hasattr(link, "getRec")
-                else (link.getLeft(), link.getRight())
+    for association in assoc_collection:
+        if hasattr(association, "getRec"):
+            source_object, target_object = association.getRec(), association.getSim()
+        elif hasattr(association, "getLeft"):
+            source_object, target_object = (
+                association.getLeft(),
+                association.getRight(),
             )
-            if src and tgt:
-                track_obj, mc_obj = (
-                    (src, tgt) if hasattr(src, "getTrackStates") else (tgt, src)
+        else:
+            if logger:
+                logger.warning(
+                    "Skipping association without a supported link interface"
                 )
-                if track_obj and mc_obj:
-                    track_to_mc_map[track_obj.getObjectID()] = mc_obj
-        except Exception:
-            pass
+            continue
+
+        if not source_object or not target_object:
+            continue
+        track_object, mc_object = (
+            (source_object, target_object)
+            if hasattr(source_object, "getTrackStates")
+            else (target_object, source_object)
+        )
+        if track_object and mc_object:
+            track_to_mc_map[track_object.getObjectID()] = mc_object
     return track_to_mc_map
 
 
@@ -367,25 +396,13 @@ def build_and_fill_histograms(
     return histogram_registry
 
 
-def clear_directory(directory_path):
-    """Clears and recreates a target directory."""
-    if os.path.exists(directory_path):
-        try:
-            shutil.rmtree(directory_path)
-            logger.info(f"Cleared existing directory: {directory_path}")
-        except Exception as e:
-            logger.error(f"Failed to clear directory '{directory_path}': {e}")
-            raise
-    os.makedirs(directory_path, exist_ok=True)
-
-
 def get_collection_hits(ctx, key):
     """Retrieves objects from single or multiple collection names."""
-    collections_cfg = ctx.config.get("collections", {})
-    col_names = collections_cfg.get(key, [])
-    if isinstance(col_names, str):
-        col_names = [col_names]
+    collections_config = ctx.config.get("collections", {})
+    collection_names = collections_config.get(key, [])
+    if isinstance(collection_names, str):
+        collection_names = [collection_names]
     hits = []
-    for col_name in col_names:
-        hits.extend(ctx.event_data.get(col_name) or [])
+    for collection_name in collection_names:
+        hits.extend(ctx.event_data.get(collection_name) or [])
     return hits

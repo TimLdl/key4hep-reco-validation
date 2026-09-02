@@ -1,3 +1,15 @@
+"""PODIO and ROOT I/O utilities.
+
+Provides thin wrappers around PODIO and ROOT file operations with consistent
+error handling and logging.
+
+Functions:
+
+- :func:`open_podio_root_reader` — opens a PODIO ROOT file for event-by-event reading
+- :func:`write_histograms_to_file` — writes a histogram registry dict to a ROOT file
+- :func:`read_histograms_from_file` — reads all TH1/TH2 objects from a ROOT file into a dict
+"""
+
 import os
 import podio
 import ROOT
@@ -29,15 +41,15 @@ def write_histograms_to_file(histogram_registry, output_path, mode="UPDATE"):
         try:
             os.makedirs(output_dir, exist_ok=True)
             logger.debug(f"Ensured output directory exists: {output_dir}")
-        except Exception as e:
-            logger.error(f"Failed to create output directory '{output_dir}': {e}")
-            return
+        except OSError as error:
+            raise OSError(
+                f"Failed to create output directory '{output_dir}'"
+            ) from error
 
     logger.info(f"Opening ROOT file for writing ({mode}): {output_path}")
     root_file = ROOT.TFile(output_path, mode)
     if not root_file or root_file.IsZombie():
-        logger.error(f"Failed to create/open ROOT file at: {output_path}")
-        return
+        raise OSError(f"Failed to create/open ROOT file at: {output_path}")
 
     written_count = 0
     try:
@@ -50,11 +62,14 @@ def write_histograms_to_file(histogram_registry, output_path, mode="UPDATE"):
                 )
             else:
                 logger.warning(f"Skipping empty histogram for registry key: '{key}'")
-    except Exception as e:
-        logger.error(f"Error occurred while writing histograms to '{output_path}': {e}")
+    except Exception:
+        logger.exception("Error occurred while writing histograms to '%s'", output_path)
+        raise
     finally:
         root_file.Close()
 
+    if written_count == 0:
+        raise ValueError(f"No histograms were written to '{output_path}'")
     logger.info(f"Successfully wrote {written_count} histogram(s) to '{output_path}'")
 
 
@@ -88,8 +103,9 @@ def read_histograms_from_file(input_path):
                 if key_name != obj_name:
                     registry[key_name] = obj
                 logger.debug(f"Loaded histogram: '{obj_name}' (key: '{key_name}')")
-    except Exception as e:
-        logger.error(f"Error reading histograms from file '{input_path}': {e}")
+    except Exception:
+        logger.exception("Error reading histograms from file '%s'", input_path)
+        raise
     finally:
         root_file.Close()
 

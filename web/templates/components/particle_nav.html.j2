@@ -1,6 +1,6 @@
 <div class="particle-tabs">
   {% for p in particles_list %}
-    <a href="{{ root_rel }}detectors/{{ detector.id }}/{{ p.slug }}/index.html"
+    <a href="{{ root_rel }}detectors/{{ detector.slug }}/{{ p.slug }}/index.html" 
        class="tab-item {% if current_particle and current_particle.slug == p.slug %}active{% endif %}">
       {{ p.name }} Validation
       <span style="font-size: 0.75rem; opacity: 0.8;">({{ p.count }})</span>

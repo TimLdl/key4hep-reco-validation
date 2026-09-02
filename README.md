@@ -1,212 +1,247 @@
-# Key4hep Reconstruction Validation Framework (key4hep-reco-validation)
+# Key4hep Reconstruction Validation (`key4hep-reco-validation`)
 
-An automated validation framework designed for evaluating detector simulation and reconstruction performance within the Key4hep ecosystem. The pipeline prouces and processes digitized PODIO ROOT event samples, extracts physics performance metrics, generates standardized histograms and vector graphics, and builds a static HTML dashboard for analysis and distribution.
+This repository runs detector validation workflows end-to-end:
+
+1. simulation/digitization,
+2. histogram extraction,
+3. plot rendering,
+4. static website build.
+
+The most important concept is: **the pipeline is config-driven**.  
+What runs is discovered from [`config/`](config), not hardcoded in CI jobs.
 
 ---
 
-## Project Structure
+## How workflow discovery works
+
+Every `*.yaml` file under:
 
 ```text
-.
-├── config/                         # Configuration specifications for detectors, styles, and web layout
-│   ├── ALLEGRO/                    # Detector concept configurations
-│   │   └── ALLEGRO_o1_v03/
-│   │       └── config.yaml         # Subdetector geometry, collection mappings, plot definitions, and processor list
-│   ├── IDEA/                       # IDEA detector concept configurations
-│   │   └── IDEA_o1_vo3/
-│   │       └── config.yaml
-│   ├── plotting.yaml               # Global ROOT plotting and styling specifications
-│   └── web.yaml                    # Global web dashboard branding, site metadata, and detector index
-├── scripts/                        # Framework logic and executable modules
-│   ├── detectors/                  # Detector-specific wrapper scripts and execution shells
-│   │   └── ALLEGRO/
-│   │       └── ALLEGRO_o1_v03/
-│   │           ├── sim_digi.sh     # Key4hep environment setup and CTest simulation trigger
-│   │           └── hist.py         # Entrypoint for running the processing engine on ALLEGRO samples
-│   ├── k4_reco_val_utils/          # Core processing, plotting, and extraction utilities
-│   │   ├── engine.py               # Main processing engine loop and processor dynamic loader
-│   │   ├── processors.py           # Subdetector metric extraction functions
-│   │   ├── plotting.py             # ROOT canvas styling and plot rendering engine
-│   │   └── io.py                   # PODIO event reading and ROOT I/O handlers
-│   ├── k4_reco_val_pipeline_utils/ # Logging and pipeline notification helper tools
-│   └── web/                        # Web site generation tools
-│       ├── build_website.py        # CLI interface for static web building
-│       └── web_builder.py          # Metadata parser and Jinja2 template rendering engine
-├── web/                            # Web frontend source code
-│   ├── static/                     # Static CSS styling, main JS scripts, and images/logos
-│   │   ├── css/style.css           # CSS design system
-│   │   ├── js/main.js              # Lightbox viewer and UI interaction logic
-│   │   └── img/                    # Logos and image assets
-│   └── templates/                  # Jinja2 HTML layout templates
-│       ├── base.html.j2            # Root layout containing header, navbar, and footer
-│       ├── index.html.j2           # Global landing page showing available detector concepts
-│       ├── detector.html.j2        # Concept overview listing particle validation dashboards
-│       ├── particle_dashboard.html.j2 # Plot gallery hierarchy with sticky quick-jump bar
-│       ├── plot_card.html.j2       # Reusable component card for rendering plot images
-│       ├── navbar.html.j2          # Reusable navigation bar component
-│       └── components/
-│           └── particle_nav.html.j2# Tabbed navigation component for switching particles
-└── local-run.sh                    # End-to-end execution script for local validation runs
+config/<DETECTOR>/<VARIANT>/*.yaml
 ```
 
----
+is treated as one validation workflow (typically one particle flow such as `electron` or `muon`).
 
-## Data and Logic Flow
+At runtime, [`setup.sh`](scripts/k4_reco_val_pipeline_utils/setup.sh) calls [`config_discovery.py`](scripts/k4_reco_val_pipeline_utils/config_discovery.py), which:
+
+- discovers all workflows,
+- validates required scripts exist,
+- writes `validation_flows.tsv`,
+- generates `generated_web.yaml` for the web stage.
+
+If `USE_DYNAMIC_SHARDS=true` (default in CI), the pipeline generates one DAG chain per workflow (or up to `MAX_DYNAMIC_SHARDS` chains when capped):
 
 ```text
-+-----------------------+     +-----------------------+     +-----------------------+     +-----------------------+
-|  1. Simulation &      |     |  2. Metric Extraction |     |  3. Plot Generation   |     |  4. Web Dashboard     |
-|     Digitization      | --> |     (engine.py)       | --> |     (plotting.py)     | --> |     (build_website)   |
-|  (sim_digi.sh)        |     |  PODIO -> TH1 ROOT    |     |  ROOT -> PNG Images   |     |  PNG -> Static HTML   |
-+-----------------------+     +-----------------------+     +-----------------------+     +-----------------------+
+setup -> (sim_i -> val_i -> plot_i)* -> workflow_gate -> web -> cleanup
 ```
 
-1. **Simulation and Digitization (`sim_digi.sh`)**
-   * Sources the Key4hep software stack via CVMFS.
-   * Triggers CTest simulation/digitization workflows to generate PODIO ROOT files containing event collections (e.g., generator particles, tracking hits, calorimetry hits, topoclusters).
-
-2. **Metric Extraction (`engine.py`, `processors.py`, `hist.py`)**
-   * Opens the digitized PODIO ROOT files and initializes an `EventContext`.
-   * Reads cell bitfield specifications from the detector configuration to decode readout identifiers.
-   * Loads configured processors dynamically to calculate physics and reconstruction metrics.
-   * Evaluates event kinematic acceptance cuts and populates standard ROOT `TH1` histograms.
-   * Exports the histograms along with event processing metadata into a processed ROOT file.
-
-3. **Plot Generation (`plotting.py`)**
-   * Reads extracted ROOT histogram datasets for specified particles.
-   * Applies global ROOT graphics options configured in `plotting.yaml`.
-   * Renders standalone PNG images and organizes them into a structured directory hierarchy based on plot metadata (`detector/particle/system/technology/region/plot_key.png`).
-
-4. **Web Dashboard Build (`build_website.py`, `web_builder.py`)**
-   * Scans the rendered plot directory hierarchy and extracts categorical metadata.
-   * Constructs an in-memory hierarchy tree grouping plots by Subdetector, Algorithm, and Region/Module.
-   * Renders Jinja2 HTML pages (`index.html`, `detector.html`, `particle_dashboard.html`) styled with a responsive CSS design system.
-   * Copies static web assets to the output site directory, producing a self-contained static site ready for deployment.
+So adding config files directly increases discovered workflows and parallel chains.
+With `USE_DYNAMIC_SHARDS=false`, the same stages run through four static shards;
+the workflow gate still prevents an empty website from being built or deployed.
 
 ---
 
-## Adding New Features
+## Required repository layout
 
-### 1. Adding a New Histogram
+For detector `XDET` and variant `XDET_o1_v01`, these are the required paths:
 
-To add a new histogram metric to an existing detector:
-
-1. Open the detector configuration file (`config/<DETECTOR_FAMILY>/<VARIANT>/config.yaml`).
-2. Add a new plot entry under the `plots` key:
-
-```yaml
-plots:
-  - key: "my_new_metric_key"
-    title: "My New Metric Title"
-    x_title: "X-Axis Unit Label"
-    type: "asymmetric"            # Options: asymmetric, symmetric, integer
-    per_collection: false          # If true, generates one histogram per collection
-    system: "tracking"            # Subdetector category (used in web hierarchy)
-    technology: "drift_chamber"   # Algorithm or technology group
-    region: "barrel"              # Module or spatial region
-    apply_eta_cut: true           # Enforces pseudorapidity acceptance
+```text
+config/XDET/XDET_o1_v01/<flow>.yaml
+scripts/detectors/XDET/XDET_o1_v01/sim_digi.sh
+scripts/detectors/XDET/XDET_o1_v01/hist.py
+scripts/detectors/XDET/XDET_o1_v01/processors.py
 ```
 
-3. Update or implement a processor function in `scripts/k4_reco_val_utils/processors.py` (or a detector-specific processor file) to fill the corresponding histogram key:
+If a required script, processor reference, plot definition, or directory identity is invalid, discovery fails early.
 
-```python
-def process_my_new_metric(ctx):
-    for hit in ctx.get_collection("MyCollection"):
-        val = hit.getValue()
-        ctx.fill_histogram("my_new_metric_key", val)
-```
+Use existing implementations as templates:
 
-### 2. Adding a New Detector Variant
-
-To introduce a new variant of an existing detector family:
-
-1. Create a new configuration directory under `config/<DETECTOR_FAMILY>/<NEW_VARIANT>/`.
-2. Add a `config.yaml` file defining detector parameters, collection mappings, plot specifications, and the list of active processor module paths.
-3. Create execution wrappers under `scripts/detectors/<DETECTOR_FAMILY>/<NEW_VARIANT>/`.
-4. Register the new variant in `config/web.yaml` under the appropriate detector concept list.
-
-### 3. Adding a New Detector Concept
-
-To add an entirely new detector concept:
-
-1. Create a configuration directory `config/<NEW_CONCEPT>/<VARIANT>/` containing a valid `config.yaml`.
-2. Create execution scripts in `scripts/detectors/<NEW_CONCEPT>/<VARIANT>/`.
-3. Add custom processor modules if the subdetector technologies require specialized extraction logic.
-4. Update `config/web.yaml` to register the new concept:
-
-```yaml
-detectors:
-  - id: "NEW_CONCEPT"
-    name: "New Detector Concept"
-    version: "NEW_CONCEPT_o1_v01"
-    description: "Detector concept description"
-    config_path: "config/NEW_CONCEPT/NEW_CONCEPT_o1_v01/config.yaml"
-```
+- [`config/ALLEGRO/ALLEGRO_o1_v03/electron.yaml`](config/ALLEGRO/ALLEGRO_o1_v03/electron.yaml)
+- [`scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/sim_digi.sh`](scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/sim_digi.sh)
+- [`scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/hist.py`](scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/hist.py)
+- [`scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/processors.py`](scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/processors.py)
 
 ---
 
-## Local Development and Testing
+## Add a new detector family
 
-### Prerequisites
+Example: add detector family `XDET`.
 
-Source the Key4hep software environment to ensure ROOT, PODIO, Python 3, and required dependencies are available:
+1. Create config root:
+   - `config/XDET/`
+2. Add at least one variant directory:
+   - `config/XDET/XDET_o1_v01/`
+3. Add at least one workflow YAML in that variant.
+4. Add matching script directory:
+   - `scripts/detectors/XDET/XDET_o1_v01/`
+5. Implement:
+   - `sim_digi.sh`
+   - `hist.py` (usually thin wrapper around shared runner)
+   - `processors.py`
 
-```bash
-source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
+Optional: add display metadata in [`config/web.yaml`](config/web.yaml) (`id`, `version`, `name`, `description`).
+
+---
+
+## Add a new detector variant
+
+Example: add `ALLEGRO_o1_v04`.
+
+1. Create:
+   - `config/ALLEGRO/ALLEGRO_o1_v04/`
+2. Add one or more workflow YAML files (one per flow/particle).
+3. Create:
+   - `scripts/detectors/ALLEGRO/ALLEGRO_o1_v04/`
+4. Add/port:
+   - `sim_digi.sh`
+   - `hist.py`
+   - `processors.py`
+5. Ensure YAML fields `detector` and `version` match directory/script names.
+
+No CI YAML change is needed for discovery.
+
+---
+
+## Add a new validation workflow (particle/config)
+
+Inside an existing variant directory, add `<flow>.yaml`, for example:
+
+```text
+config/ALLEGRO/ALLEGRO_o1_v03/pion.yaml
 ```
 
-Ensure Python dependencies for web generation and configuration parsing are installed:
+Minimum required keys:
 
-```bash
-pip install jinja2 pyyaml
+```yaml
+detector: "ALLEGRO"
+version: "ALLEGRO_o1_v03"
+validation: "pion"
+
+simulation:
+  particle: "pi-"
+  output_tag: "pi"
+  energy: "10*GeV"
+  seed: 42
 ```
 
-### Running the Full Pipeline
+Also define:
 
-Execute the end-to-end pipeline locally (processing ROOT samples, generating histograms, rendering plots, and building the website):
+- `collections` used by your processors,
+- `plots` entries to be rendered,
+- `processors` list (Python import paths).
 
-```bash
-./local-run.sh
+Reference schema/documentation: [`config/README.md`](config/README.md)
+
+---
+
+## Add new plots
+
+Plots are configured in workflow YAML under `plots:` and populated by processor functions.
+
+### 1) Add the plot spec in YAML
+
+Each plot entry includes at least:
+
+- `key`
+- `title`
+- `x_title`
+- `type` (`asymmetric`, `symmetric`, or `integer`)
+- `bins`, `xmin`, `xmax`
+- `per_collection` (bool)
+- `system` (used for web grouping)
+- `apply_eta_cut` (bool)
+
+See concrete examples in [`electron.yaml`](config/ALLEGRO/ALLEGRO_o1_v03/electron.yaml).
+
+### 2) Fill the corresponding data in `processors.py`
+
+If the plot key is `momentum_resolution`, your processor must append values into:
+
+- `data_registry["momentum_resolution"]` when `per_collection: false`, or
+- `data_registry["momentum_resolution_<collection>"]` when `per_collection: true`.
+
+The shared extraction runner is [`hist_runner.py`](scripts/detectors/k4_reco_val_utils/hist_runner.py), which is invoked by each variant `hist.py`.
+
+### 3) Run and verify output paths
+
+Plot images are written under:
+
+```text
+<plots-root>/<DETECTOR>/<VARIANT>/<validation_slug>/<system_slug>/*.png
 ```
 
-### Individual Execution Steps
+The website stage reads this structure directly.
 
-Pipeline steps can be executed individually:
+---
 
-* **Histogram Extraction:**
-  ```bash
-  python3 scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/hist.py \
-      --input path/to/input_digi.root \
-      --output path/to/output_hist.root \
-      --particle-prefix electron \
-      --config config/ALLEGRO/ALLEGRO_o1_v03/config.yaml
-  ```
+## Pipeline behavior and controls
 
-* **Plot Rendering:**
-  ```bash
-  python3 scripts/k4_reco_val_utils/plotting.py \
-      --inputs electron=path/to/output_hist.root \
-      --style-config config/plotting.yaml \
-      --detector-config config/ALLEGRO/ALLEGRO_o1_v03/config.yaml \
-      --output-dir path/to/plots_dir
-  ```
+Main pipeline entrypoint: [`.gitlab-ci.yml`](.gitlab-ci.yml)
 
-* **Website Build:**
-  ```bash
-  python3 scripts/web/build_website.py \
-      --web-config config/web.yaml \
-      --templates-dir web/templates \
-      --static-dir web/static \
-      --plots-dir path/to/plots_dir \
-      --output-dir path/to/www_dir
-  ```
+GitLab jobs run for merge-request pipelines and pushes to the default branch.
+Merge requests build and validate but never publish to EOS. Default-branch pushes
+deploy the generated website after a successful child-pipeline web stage.
 
-### Local Inspection
+Relevant CI variables:
 
-To view the generated web dashboard locally:
+- `VERSIONS`: optional filter (`ALLEGRO_o1_v03` or `ALLEGRO/ALLEGRO_o1_v03`)
+- `USE_DYNAMIC_SHARDS`: `true` to generate per-workflow DAG chains
+- `MAX_DYNAMIC_SHARDS`: optional cap on discovered workflow chains
+- `CI_OUTPUT_DIR`: website output directory (defaults to `$WORKAREA/web`)
+- `MAKE_REFERENCE_SAMPLE`: `yes` to save references instead of comparison mode
+- `WORKAREA`, `PLOTAREA`, `REFERENCE_SAMPLE`: output locations
+
+Notification policy:
+
+- one final SUCCESS mail in cleanup if no warnings/errors,
+- WARNING/ERROR mails only when stages degrade/fail.
+
+Additional module documentation:
+
+- [`config/README.md`](config/README.md)
+- [`scripts/detectors/README.md`](scripts/detectors/README.md)
+- [`scripts/detectors/k4_reco_val_utils/README.md`](scripts/detectors/k4_reco_val_utils/README.md)
+- [`scripts/web/README.md`](scripts/web/README.md)
+
+Pipeline utility scripts are documented in:
+- [`scripts/k4_reco_val_pipeline_utils/README.md`](scripts/k4_reco_val_pipeline_utils/README.md)
+
+---
+
+## Local execution
+
+Run CI stages locally:
 
 ```bash
-python3 -m http.server 8000 --directory path/to/www_dir
+./local-run-script.sh
+./local-run-script.sh --runTask web
+./local-run-script.sh --runTask plot --only
 ```
 
-Open `http://localhost:8000` in a web browser.
+Run validation+plot only (no simulation, using pre-existing digi files):
+
+```bash
+./validation-test.sh --data-dir /path/to/digi
+```
+
+Useful checks while extending configs:
+
+```bash
+python3 scripts/k4_reco_val_pipeline_utils/config_discovery.py \
+  --repo-root "$PWD" --format tsv --output /tmp/validation_flows.tsv
+```
+
+If this command fails, fix config/script path mismatches before running CI.
+
+---
+
+## Quick extension checklist
+
+Before opening an MR, verify:
+
+- [ ] New config file is under `config/<DETECTOR>/<VARIANT>/`.
+- [ ] Matching script directory exists under `scripts/detectors/<DETECTOR>/<VARIANT>/`.
+- [ ] `simulation.particle`, `simulation.output_tag`, `simulation.energy` are set.
+- [ ] Every new plot key is actually filled by a processor.
+- [ ] `config_discovery.py` runs successfully, including processor and plot validation.
+- [ ] Local pipeline run reaches at least `plot` stage.

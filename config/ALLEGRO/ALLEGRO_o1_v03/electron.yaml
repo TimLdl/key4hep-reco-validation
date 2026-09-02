@@ -1,6 +1,14 @@
 detector: "ALLEGRO"
 version: "ALLEGRO_o1_v03"
 validation: "electron"
+simulation:
+  particle: "e-"
+  output_tag: "e"
+  energy: "10*GeV"
+  n_events: 100
+  # seed: 42
+  # run_track_validation: false
+
 
 detector_parameters:
   magnetic_field_tesla: 2.0

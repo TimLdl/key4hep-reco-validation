@@ -13,7 +13,9 @@ def process_digi_and_occupancy(ctx: EventContext, data_registry: dict) -> None:
     if not ctx.is_accepted_eta:
         return
 
-    sub_cfg = ctx.config.get("subdetectors", {}).get("drift_chamber", {})
+    drift_chamber_config = ctx.config.get("subdetectors", {}).get(
+        "drift_chamber", {}
+    )
 
     if (
         "vtx_digi_hits_per_event" in data_registry
@@ -39,21 +41,23 @@ def process_digi_and_occupancy(ctx: EventContext, data_registry: dict) -> None:
     if "drift_chamber_hits_per_layer" in data_registry:
         layer_hits = Counter()
         dch_digis = get_collection_hits(ctx, "dch_digis")
-        total_layers = sub_cfg.get("total_layers", 112)
-        sl_bit = sub_cfg.get("superlayer_bit_name", "superlayer")
-        l_bit = sub_cfg.get("layer_bit_name", "layer")
+        total_layers = drift_chamber_config.get("total_layers", 112)
+        superlayer_bit_name = drift_chamber_config.get(
+            "superlayer_bit_name", "superlayer"
+        )
+        layer_bit_name = drift_chamber_config.get("layer_bit_name", "layer")
 
         if ctx.bitfield_decoder:
             for hit in dch_digis:
                 cell_id = hit.getCellID()
-                idx = ctx.bitfield_decoder.get(
-                    cell_id, sl_bit
-                ) * 8 + ctx.bitfield_decoder.get(cell_id, l_bit)
-                layer_hits[idx] += 1
+                layer_index = (
+                    ctx.bitfield_decoder.get(cell_id, superlayer_bit_name) * 8
+                    + ctx.bitfield_decoder.get(cell_id, layer_bit_name)
+                )
+                layer_hits[layer_index] += 1
 
-        # Correctly preserve exact layer index alignment (0 to total_layers - 1)
         data_registry["drift_chamber_hits_per_layer"].extend(
-            layer_hits[idx] for idx in range(total_layers)
+            layer_hits[layer_index] for layer_index in range(total_layers)
         )
 
     if "muon_system_hits_per_event" in data_registry:
@@ -62,23 +66,25 @@ def process_digi_and_occupancy(ctx: EventContext, data_registry: dict) -> None:
 
 
 def process_drift_chamber_dndx(ctx: EventContext, data_registry: dict) -> None:
-    """TODO"""
+    """Accumulates positive drift-chamber cluster counts used as dN/dx values."""
     if "dch_dndx_value" not in data_registry:
         return
 
     dndx_hits = get_collection_hits(ctx, "dch_dndx")
 
-    for item in dndx_hits:
-        val = item.getNCluster()
-        if val > 0:
-            data_registry["dch_dndx_value"].append(float(val))
+    for dndx_hit in dndx_hits:
+        cluster_count = dndx_hit.getNCluster()
+        if cluster_count > 0:
+            data_registry["dch_dndx_value"].append(float(cluster_count))
 
 
 def process_tracking_performance(ctx: EventContext, data_registry: dict) -> None:
     """Calculates track multiplicity, hit counts, fit chi2/ndf, and momentum resolution."""
-    cols = ctx.config.get("collections", {})
-    track_collections = cols.get("track_collections", ["FittedTracks"])
-    b_field = ctx.config.get("detector_parameters", {}).get("magnetic_field_tesla", 2.0)
+    collections_config = ctx.config.get("collections", {})
+    track_collections = collections_config.get("track_collections", ["FittedTracks"])
+    magnetic_field_tesla = ctx.config.get("detector_parameters", {}).get(
+        "magnetic_field_tesla", 2.0
+    )
 
     for col_name in track_collections:
         try:
@@ -92,29 +98,33 @@ def process_tracking_performance(ctx: EventContext, data_registry: dict) -> None
         p_res_key = f"momentum_resolution_{col_name}"
         reco_key = f"reconstructed_tracks_per_event_{col_name}"
 
-        for t in tracks:
-            if t.trackerHits_size() == 0:
+        for track in tracks:
+            if track.trackerHits_size() == 0:
                 continue
             valid_tracks += 1
 
             if ctx.is_accepted_eta and hits_key in data_registry:
-                data_registry[hits_key].append(t.trackerHits_size())
+                data_registry[hits_key].append(track.trackerHits_size())
 
-            if t.getNdf() > 0 and chi2_key in data_registry:
-                data_registry[chi2_key].append(t.getChi2() / t.getNdf())
+            if track.getNdf() > 0 and chi2_key in data_registry:
+                data_registry[chi2_key].append(track.getChi2() / track.getNdf())
 
-            if t.trackStates_size() > 0 and p_res_key in data_registry:
-                st = t.getTrackStates()[0]
-                p_reco = calculate_track_momentum(st, b_field)
-                if p_reco > 0:
+            if track.trackStates_size() > 0 and p_res_key in data_registry:
+                track_state = track.getTrackStates()[0]
+                reconstructed_momentum = calculate_track_momentum(
+                    track_state, magnetic_field_tesla
+                )
+                if reconstructed_momentum > 0:
                     matched_mc = ctx.track_to_mc_map.get(
-                        t.getObjectID(), ctx.primary_mc
+                        track.getObjectID(), ctx.primary_mc
                     )
                     if matched_mc:
                         p_mc = matched_mc.getMomentum()
                         p_true = math.hypot(p_mc.x, p_mc.y, p_mc.z)
                         if p_true > 0:
-                            data_registry[p_res_key].append((p_reco - p_true) / p_true)
+                            data_registry[p_res_key].append(
+                                (reconstructed_momentum - p_true) / p_true
+                            )
 
         if reco_key in data_registry:
             data_registry[reco_key].append(valid_tracks)

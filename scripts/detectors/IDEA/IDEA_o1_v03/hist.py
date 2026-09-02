@@ -1,22 +1,11 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[3]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from detectors.k4_reco_val_utils.engine import (
-    analyze_detector_simulation_file,
-    run_detector_pipeline,
-)
-
-
-def main():
-    run_detector_pipeline(
-        detector_name="IDEA",
-        default_config="config/IDEA/IDEA_o1_v03/config.yaml",
-    )
-
+from detectors.k4_reco_val_utils.hist_runner import run
 
 if __name__ == "__main__":
-    main()
+    run(__file__)

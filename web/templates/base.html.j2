@@ -12,8 +12,8 @@
   <nav class="navbar">
     <a href="{{ root_rel }}index.html" class="navbar-brand">
       <div class="logo-container">
-           <img src="{{ root_rel }}static/img/FCC-Circle_Main_RGB_White.png"
-             alt="FCC Logo"
+        <img src="{{ root_rel }}static/img/FCC-Circle_Main_RGB_White.png" 
+             alt="FCC Logo" 
              class="navbar-logo"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
         <svg class="navbar-logo-fallback" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:none;">
@@ -37,9 +37,9 @@
       </li>
       {% for det in detectors %}
       <li>
-        <a href="{{ root_rel }}detectors/{{ det.id }}/index.html"
-           class="{% if (detector and detector.id == det.id) or active_page == det.id %}active{% endif %}">
-          {{ det.id }}
+        <a href="{{ root_rel }}detectors/{{ det.slug }}/index.html" 
+           class="{% if (detector and detector.slug == det.slug) or active_page == det.slug %}active{% endif %}">
+          {{ det.version }}
         </a>
       </li>
       {% endfor %}

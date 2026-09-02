@@ -1,76 +1,75 @@
 #!/bin/bash
-source "$(dirname "$0")/utils.sh"
-source "$WORKAREA/version_array.txt"
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/utils.sh" || exit 1
+FLOW_MANIFEST="$WORKAREA/validation_flows.tsv"
 
-UPDATED_VERSION_ARRAY=()
+if [[ ! -f "$FLOW_MANIFEST" ]]; then
+    log_error "Validation flow manifest not found: $FLOW_MANIFEST"
+    exit 1
+fi
 
-for VERSION in "${VERSION_ARRAY[@]}"; do
-    [[ -z "$VERSION" ]] && continue
+selected_count=0
+success_count=0
+warning_count=0
+declare -a warning_messages=()
+declare -a failure_messages=()
 
-    GEOMETRY="${VERSION%%_*}"
-    log_info "Processing Geometry: $GEOMETRY - Version: $VERSION"
+while IFS=$'\t' read -r detector version _slug validation _config_path _config_dir _config_rel_dir particle output_tag energy seed n_events run_track_validation sim_script _hist_script; do
+    [[ -z "$detector" ]] && continue
+    ((selected_count += 1))
 
-    if ! pushd "$WORKAREA/$GEOMETRY/$VERSION" > /dev/null; then
-        log_error "Could not enter directory: $WORKAREA/$GEOMETRY/$VERSION"
+    log_info "Running simulation flow '${validation}' for ${detector} ${version}"
+
+    flow_dir="$WORKAREA/$detector/$version"
+    if ! mkdir -p "$flow_dir"; then
+        message="Could not create work directory '${flow_dir}'"
+        log_error "$message"
+        failure_messages+=("$message")
         continue
     fi
 
-    job_script="${WORKAREA}/key4hep-reco-validation/scripts/detectors/${GEOMETRY}/${VERSION}/sim_digi.sh"
-
-    exit_code=0
-
-    IFS=',' read -r -a raw_particles <<< "${PARTICLES:-e-,mu-}"
-    particles=()
-    for p in "${raw_particles[@]}"; do
-        p_clean="${p//[[:space:]]/}"
-        [[ -n "$p_clean" ]] && particles+=("$p_clean")
-    done
-
-    for p in "${particles[@]}"; do
-        output_name="${p//[-+]/}"
-
-        log_info "Running script execution for ${p} particleGun..."
-
-        ( source "$job_script" --nEvents ${NUMBER_OF_EVENTS} --particle "$p" --energy "10*GeV" --outputFile "${output_name}_particleGun" --seed 42 )
-        cmd_status=$?
-
-        log_info "Script finished with exit code: ${cmd_status}"
-
-        if [ $cmd_status -ne 0 ]; then
-            exit_code=1
-            log_error "Execution failed for ${p} particle gun!"
-        else
-            if [[ "$MAKE_REFERENCE_SAMPLE" == "yes" ]]; then
-                ref_dir="$WORKAREA/$REFERENCE_SAMPLE/$GEOMETRY/$VERSION"
-                mkdir -p "$ref_dir"
-
-                SIM_FILE="${GEOMETRY}_${output_name}_particleGun_sim.root"
-
-                if [[ -f "${SIM_FILE}" ]]; then
-                    cp "${SIM_FILE}" "${ref_dir}/ref_${VERSION}_${output_name}_particleGun_sim.root"
-                    log_success "Simulation reference sample generated successfully for ${p} ($VERSION)"
-                else
-                    log_error "Simulation file ${SIM_FILE} not found in $(pwd)!"
-                fi
-            fi
-        fi
-    done
-
-    log_info "All script executions completed with final exit code: ${exit_code}"
-
-    if [[ $exit_code -ne 0 ]]; then
-        log_error "Execution failed for $VERSION. Sending warning notification..."
-
-        python "scripts/send_mail.py" \
-            --to "$EMAIL_ADDRESSES" \
-            --subject "WARNING for $VERSION: error during script execution!" \
-            --body "An error occurred when executing the script for $VERSION: either a script crashed or the output file was not produced."
-    else
-        UPDATED_VERSION_ARRAY+=("$VERSION")
+    if ! pushd "$flow_dir" > /dev/null; then
+        message="Could not enter work directory '${flow_dir}'"
+        log_error "$message"
+        failure_messages+=("$message")
+        continue
     fi
 
-    popd > /dev/null || exit
-done
+    (
+        export VERSION="$version"
+        sim_args=(
+            --nEvents "${n_events}"
+            --particle "$particle"
+            --energy "$energy"
+            --outputFile "${output_tag}_particleGun"
+            --seed "$seed"
+        )
+        if [[ "${run_track_validation}" == "true" ]]; then
+            sim_args+=(--runTrackValidation)
+        fi
+        source "$sim_script" "${sim_args[@]}"
+    )
+    command_status=$?
 
-VERSION_ARRAY=("${UPDATED_VERSION_ARRAY[@]}")
-declare -p VERSION_ARRAY > "$WORKAREA/version_array.txt"
+    if [[ $command_status -ne 0 ]]; then
+        message="Simulation failed for ${detector} ${version} / ${validation} (exit code ${command_status})"
+        log_warn "$message"
+        warning_messages+=("$message")
+        ((warning_count += 1))
+    else
+        log_success "Simulation completed for ${detector} ${version} / ${validation}"
+        ((success_count += 1))
+    fi
+
+    popd > /dev/null || exit 1
+done < <(select_flow_rows "$FLOW_MANIFEST")
+
+finalize_flow_stage \
+    "simulation" \
+    "Simulation" \
+    "Simulation" \
+    "$selected_count" \
+    "$success_count" \
+    "$warning_count" \
+    warning_messages \
+    failure_messages
+exit $?
