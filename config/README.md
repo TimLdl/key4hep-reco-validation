@@ -1,19 +1,18 @@
-# `config/` — Validation Configuration Tree
+# `config/` - Validation Configuration
 
-All pipeline configuration lives here. The directory tree is the authoritative
-source for which detectors and validation flows are active — the pipeline
-auto-discovers everything from this tree.
+The directory tree is the authoritative source for active detectors, variants,
+and validation workflows. CI discovers workflows from this tree.
 
 ## Directory Layout
 
 ```
 config/
-├── <DETECTOR>/                     # Detector family (e.g. ALLEGRO, IDEA)
-│   └── <VARIANT>/                  # Detector variant (e.g. ALLEGRO_o1_v03)
-│       ├── electron.yaml           # One file per validation flow (particle)
+├── <DETECTOR>/
+│   └── <VARIANT>/
+│       ├── electron.yaml
 │       └── muon.yaml
-├── plotting.yaml                   # Global ROOT style and plot appearance settings
-└── web.yaml                        # Optional: branding and detector display name overrides
+├── plotting.yaml
+└── web.yaml
 ```
 
 ## Per-Particle Validation Config
@@ -21,15 +20,15 @@ config/
 Each `<particle>.yaml` file fully defines one validation flow:
 
 ```yaml
-detector:  "ALLEGRO"           # Detector family name (must match scripts/detectors/<DETECTOR>/)
-version:   "ALLEGRO_o1_v03"    # Variant (must match scripts/detectors/<DETECTOR>/<VARIANT>/)
-validation: "electron"          # Used for output filenames and web dashboard particle grouping
+detector:  "ALLEGRO"
+version:   "ALLEGRO_o1_v03"
+validation: "electron"
 
 simulation:
-  particle:   "e-"              # Geant4 particle name (passed to sim_digi.sh)
-  output_tag: "e"               # Short tag → digi file: <DET>_<output_tag>_particleGun_digi.root
-  energy:     "10*GeV"          # Beam energy string (Geant4 format)
-  seed:       42                # Optional random seed (default: 42)
+  particle:   "e-"
+  output_tag: "e"
+  energy:     "10*GeV"
+  seed:       42
 
 detector_parameters:
   magnetic_field_tesla: 2.0
@@ -50,24 +49,24 @@ plots:
   - key:   "momentum_resolution"
     title: "Momentum Resolution"
     x_title: "(p_reco - p_true) / p_true"
-    type:  "symmetric"          # asymmetric | symmetric | integer
+    type:  "symmetric"
     bins:  50
     xmin:  -0.25
     xmax:  0.25
-    per_collection: true        # If true, one histogram per track_collection entry
-    system: "tracking"          # Subdetector category (used in web hierarchy)
+    per_collection: true
+    system: "tracking"
     apply_eta_cut: false
 
 processors:
   - "detectors.ALLEGRO.ALLEGRO_o1_v03.processors.process_track_reconstruction"
 ```
 
-## `plotting.yaml` — Global Style Settings
+## `plotting.yaml` - Global Style Settings
 
 Controls ROOT canvas size, margins, fonts, axis styles, legend placement,
 KS test visualization, and sample line colors. Shared across all detectors.
 
-## `web.yaml` — Branding and Display Overrides
+## `web.yaml` - Branding and Display Overrides
 
 This file is **optional** metadata. Detectors are discovered automatically
 from the `config/<DETECTOR>/<VARIANT>/` tree. `web.yaml` only provides
@@ -78,7 +77,7 @@ site_title:    "key4hep Reconstruction Validation"
 organization:  "CERN / FCC Collaboration"
 footer_text:   "key4hep Reconstruction Validation"
 
-# Optional overrides — discovery is automatic without these entries
+# Optional overrides; discovery is automatic without these entries
 detectors:
   - id:          "ALLEGRO"
     version:     "ALLEGRO_o1_v03"

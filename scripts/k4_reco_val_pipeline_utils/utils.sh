@@ -14,6 +14,10 @@ log_success() { echo -e "${GREEN}[OK]${NC} $*"; }
 log_warn()    { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
 
+pipeline_repo_root() {
+    cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd
+}
+
 normalize_slug() {
     local value="$1"
     local cleaned
@@ -112,7 +116,10 @@ send_stage_mail() {
     python3 "${repo_root}/scripts/k4_reco_val_pipeline_utils/send_mail.py" \
         --to "$recipient" \
         --subject "$subject" \
-        --body "$body" || log_warn "Unable to send notification mail: ${subject}"
+        --body "$body" || {
+            log_warn "Unable to send notification mail: ${subject}"
+            mark_pipeline_warning "Notification failed: ${subject}"
+        }
 }
 
 pipeline_warning_file() {
@@ -159,21 +166,104 @@ empty_shard_exit_code() {
     fi
 }
 
+finalize_flow_stage() {
+    local stage_name="$1"
+    local stage_title="$2"
+    local no_success_description="$3"
+    local selected_count="$4"
+    local success_count="$5"
+    local warning_count="$6"
+    local warning_messages_name="$7"
+    local failure_messages_name="$8"
+    local -n warning_messages_ref="$warning_messages_name"
+    local -n failure_messages_ref="$failure_messages_name"
+    local failure_count="${#failure_messages_ref[@]}"
+    local message
+    local repo_root
+    repo_root="$(pipeline_repo_root)"
+
+    if [[ "$selected_count" -eq 0 ]]; then
+        message="No validation flows were assigned to this ${stage_name} shard."
+        log_error "$message"
+        mark_pipeline_error "$message"
+        send_stage_mail \
+            "$repo_root" \
+            "$EMAIL_ADDRESSES" \
+            "Key4hep validation ${stage_name} ERROR: 0/0 flows completed" \
+            "${stage_title} stage summary\n\nSelected flows: 0\nSucceeded: 0\nWarnings: 0\nErrors: 1\n\n${message}\n"
+        return 1
+    fi
+
+    local severity="SUCCESS"
+    local empty_exit_code=0
+    if [[ "$failure_count" -gt 0 || ${#warning_messages_ref[@]} -gt 0 || "$success_count" -eq 0 ]]; then
+        severity="WARNING"
+    fi
+    if [[ "$success_count" -eq 0 ]]; then
+        empty_exit_code="$(empty_shard_exit_code)"
+        if [[ "$empty_exit_code" -ne 0 ]]; then
+            severity="ERROR"
+        fi
+    fi
+
+    local subject="Key4hep validation ${stage_name} ${severity}: ${success_count}/${selected_count} flows completed"
+    local detail_text
+    detail_text="$(printf '%s\n' "${warning_messages_ref[@]}" "${failure_messages_ref[@]}")"
+    local body
+    body=$(cat <<EOF
+${stage_title} stage summary for ${repo_root}
+
+Shard: $(( $(stage_shard_index) + 1 ))/$(stage_shard_total)
+Selected flows: ${selected_count}
+Succeeded: ${success_count}
+Warnings: ${warning_count}
+Errors: ${failure_count}
+
+${detail_text}
+EOF
+)
+
+    if [[ "$severity" == "WARNING" ]]; then
+        mark_pipeline_warning "$subject"
+    elif [[ "$severity" == "ERROR" ]]; then
+        mark_pipeline_error "$subject"
+    fi
+    if [[ "$severity" != "SUCCESS" ]]; then
+        send_stage_mail "$repo_root" "$EMAIL_ADDRESSES" "$subject" "$body"
+    fi
+
+    if [[ "$success_count" -eq 0 ]]; then
+        if [[ "$empty_exit_code" -eq 0 ]]; then
+            log_warn "${no_success_description} had no successful workflows in this shard; continuing due to SOFT_FAIL_ON_EMPTY_SHARD=true."
+        else
+            log_error "${no_success_description} had no successful workflows; aborting downstream stages."
+        fi
+        return "$empty_exit_code"
+    fi
+    return 0
+}
+
 # Direct Python log files to $WORKAREA/logs/ when WORKAREA is set.
 if [[ -n "${WORKAREA}" ]]; then
     export K4_LOG_DIR="${WORKAREA}/logs"
     mkdir -p "${K4_LOG_DIR}"
 fi
 
-# Centralized, fail-soft stack initialization
+# Initialize the Key4hep stack once for each stage shell.
 if [[ -n "${KEY4HEP_STACK}" ]]; then
     log_warn "Key4hep stack already loaded in this shell. Skipping source."
 else
     log_info "Sourcing current key4hep stack..."
-    if [ -n "$TAG" ]; then
-        source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh -r "$TAG" || true
+    if [[ ! -f /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh ]]; then
+        log_error "Key4hep setup script is not available on this runner."
+        return 1
+    fi
+    if [ -n "${TAG:-}" ]; then
+        source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh -r "$TAG" ||
+            return 1
     else
-        source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh || true
+        source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh ||
+            return 1
     fi
     log_success "Key4hep stack initialization complete."
 fi

@@ -2,9 +2,6 @@ site_title: "key4hep Reconstruction Validation"
 organization: "CERN / FCC Collaboration"
 footer_text: "key4hep Reconstruction Validation"
 
-# Optional display name and description overrides per detector variant.
-# Detector variants are auto-discovered from config/<DETECTOR>/<VARIANT>/*.yaml.
-# Only id and version are used for matching; all other fields are optional overrides.
 detectors:
   - id: "IDEA"
     version: "IDEA_o1_v03"

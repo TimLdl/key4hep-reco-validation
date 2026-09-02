@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import ast
 import json
 import sys
 from pathlib import Path
@@ -50,6 +51,55 @@ def load_yaml(path: Path) -> dict:
     return data or {}
 
 
+def validate_processor_reference(repo_root: Path, cfg_path: Path, reference: str) -> None:
+    module_name, separator, function_name = reference.rpartition(".")
+    if not separator or not module_name or not function_name:
+        raise ValueError(
+            f"Config '{cfg_path}' has invalid processor reference '{reference}'"
+        )
+    module_path = repo_root / "scripts" / Path(*module_name.split(".")).with_suffix(".py")
+    if not module_path.is_file():
+        raise FileNotFoundError(
+            f"Config '{cfg_path}' references missing processor module '{module_name}' "
+            f"at '{module_path}'"
+        )
+    tree = ast.parse(module_path.read_text(encoding="utf-8"), filename=str(module_path))
+    if not any(
+        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == function_name
+        for node in ast.walk(tree)
+    ):
+        raise ValueError(
+            f"Config '{cfg_path}' references missing processor function '{reference}'"
+        )
+
+
+def validate_plot_specs(config_path: Path, config: dict) -> None:
+    allowed_types = {"asymmetric", "symmetric", "integer"}
+    plots = config.get("plots")
+    if not isinstance(plots, list) or not plots:
+        raise ValueError(f"Config '{config_path}' must define a non-empty plots list")
+    for index, plot in enumerate(plots):
+        if not isinstance(plot, dict):
+            raise ValueError(f"Config '{config_path}' plot {index} must be a mapping")
+        missing = {"key", "title", "type", "bins", "xmin", "xmax", "system"} - set(plot)
+        if missing:
+            raise ValueError(
+                f"Config '{config_path}' plot {index} is missing: {', '.join(sorted(missing))}"
+            )
+        if plot["type"] not in allowed_types:
+            raise ValueError(
+                f"Config '{config_path}' plot {index} has unsupported type '{plot['type']}'"
+            )
+        try:
+            if int(plot["bins"]) <= 0 or float(plot["xmax"]) <= float(plot["xmin"]):
+                raise ValueError
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Config '{config_path}' plot {index} must have positive bins and xmax > xmin"
+            ) from exc
+
+
 def iter_config_paths(repo_root: Path):
     config_root = repo_root / "config"
     if not config_root.is_dir():
@@ -91,12 +141,18 @@ def discover_validation_flows(
     for cfg_path in iter_config_paths(repo_root):
         detector_from_path = cfg_path.parent.parent.name
         version_from_path = cfg_path.parent.name
-        cfg = load_yaml(cfg_path)
+        config = load_yaml(cfg_path)
 
-        detector = str(cfg.get("detector", detector_from_path))
-        version = str(cfg.get("version", version_from_path))
-        validation = str(cfg.get("validation", cfg_path.stem))
+        detector = str(config.get("detector", detector_from_path))
+        version = str(config.get("version", version_from_path))
+        validation = str(config.get("validation", cfg_path.stem))
         slug = normalize_slug(version)
+
+        if detector != detector_from_path or version != version_from_path:
+            raise ValueError(
+                f"Config '{cfg_path}' declares detector/version '{detector}/{version}', "
+                f"but its path is '{detector_from_path}/{version_from_path}'"
+            )
 
         if not version_selected(detector, version, requested_versions):
             continue
@@ -114,10 +170,19 @@ def discover_validation_flows(
                 f"Missing hist.py for config '{cfg_path}' at '{hist_script}'"
             )
 
-        particle = resolve_required_simulation_field(cfg_path, cfg, "particle")
-        output_tag = resolve_required_simulation_field(cfg_path, cfg, "output_tag")
-        energy = resolve_required_simulation_field(cfg_path, cfg, "energy")
-        seed = str((cfg.get("simulation") or {}).get("seed", 42))
+        processors = config.get("processors")
+        if not isinstance(processors, list) or not processors:
+            raise ValueError(f"Config '{cfg_path}' must define a non-empty processors list")
+        for processor in processors:
+            if not isinstance(processor, str):
+                raise ValueError(f"Config '{cfg_path}' contains a non-string processor reference")
+            validate_processor_reference(repo_root, cfg_path, processor)
+        validate_plot_specs(cfg_path, config)
+
+        particle = resolve_required_simulation_field(cfg_path, config, "particle")
+        output_tag = resolve_required_simulation_field(cfg_path, config, "output_tag")
+        energy = resolve_required_simulation_field(cfg_path, config, "energy")
+        seed = str((config.get("simulation") or {}).get("seed", 42))
 
         flows.append(
             {
@@ -136,6 +201,13 @@ def discover_validation_flows(
                 "hist_script": str(hist_script),
             }
         )
+
+    identifiers = [(flow["detector"], flow["version"], flow["validation"]) for flow in flows]
+    if len(identifiers) != len(set(identifiers)):
+        raise ValueError("Duplicate detector/version/validation workflow identifiers discovered")
+    output_keys = [(flow["detector"], flow["version"], flow["output_tag"]) for flow in flows]
+    if len(output_keys) != len(set(output_keys)):
+        raise ValueError("Duplicate detector/version/output_tag combinations discovered")
 
     return flows
 
@@ -161,9 +233,9 @@ def discover_detector_variants(
 ) -> list[dict]:
     base_web_config = base_web_config or {}
     configured = {}
-    for det in base_web_config.get("detectors", []):
-        configured[(det.get("id"), det.get("version"))] = det
-        configured.setdefault((det.get("id"), None), det)
+    for detector_override in base_web_config.get("detectors", []):
+        configured[(detector_override.get("id"), detector_override.get("version"))] = detector_override
+        configured.setdefault((detector_override.get("id"), None), detector_override)
 
     variants: list[dict] = []
     seen: set[tuple[str, str]] = set()

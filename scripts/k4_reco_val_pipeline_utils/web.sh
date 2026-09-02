@@ -1,10 +1,9 @@
 #!/bin/bash
-source "$(dirname "$0")/utils.sh"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+source "$(dirname "$0")/utils.sh" || exit 1
+REPO_ROOT="$(pipeline_repo_root)"
 FLOW_MANIFEST="$WORKAREA/validation_flows.tsv"
 GENERATED_WEB_CONFIG="$WORKAREA/generated_web.yaml"
-WEB_OUTPUT_DIR="$WORKAREA/web"
+WEB_OUTPUT_DIR="${CI_OUTPUT_DIR:-$WORKAREA/web}"
 cd "$WORKAREA" || exit 1
 
 if [[ ! -f "$FLOW_MANIFEST" ]]; then
@@ -17,12 +16,16 @@ if [[ ! -f "$GENERATED_WEB_CONFIG" ]]; then
     exit 1
 fi
 
-rel=$(realpath "$(dirname "$KEY4HEP_STACK")/../../")
-log_info "Active Spack release tracking base context: $rel"
+stack_metadata_root=$(realpath "$(dirname "$KEY4HEP_STACK")/../../")
+log_info "Active Spack release tracking base context: $stack_metadata_root"
 
-echo "key4hep-spack: $(cat "$rel/.key4hep-spack-commit")" > metadata.yaml
-echo "spack: $(cat "$rel/.spack-commit")" >> metadata.yaml
-echo "nightly: $rel" >> metadata.yaml
+if [[ ! -f "$stack_metadata_root/.key4hep-spack-commit" || ! -f "$stack_metadata_root/.spack-commit" ]]; then
+    log_error "Key4hep metadata files are missing under '$stack_metadata_root'."
+    exit 1
+fi
+printf 'key4hep-spack: %s\n' "$(cat "$stack_metadata_root/.key4hep-spack-commit")" > metadata.yaml
+printf 'spack: %s\n' "$(cat "$stack_metadata_root/.spack-commit")" >> metadata.yaml
+printf 'nightly: %s\n' "$stack_metadata_root" >> metadata.yaml
 
 selected_count=0
 
@@ -59,9 +62,10 @@ EOF
 )
 
 if [[ $build_status -ne 0 ]]; then
-    mark_pipeline_warning "Web build returned non-zero exit code (${build_status})."
+    mark_pipeline_error "Web build returned non-zero exit code (${build_status})."
     send_stage_mail "$REPO_ROOT" "$EMAIL_ADDRESSES" "$subject" "$body"
-    log_warn "Website build reported a non-zero exit code (${build_status}); continuing with warning mail."
+    log_error "Website build reported a non-zero exit code (${build_status})."
+    exit "$build_status"
 else
     log_success "Website built successfully."
 fi
