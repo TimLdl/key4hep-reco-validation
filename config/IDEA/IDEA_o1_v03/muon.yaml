@@ -1,5 +1,11 @@
 detector: "IDEA"
 version: "IDEA_o1_v03"
+validation: "muon"
+simulation:
+  particle: "mu-"
+  output_tag: "mu"
+  energy: "10*GeV"
+
 
 # Global detector properties
 detector_parameters:

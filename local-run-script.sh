@@ -23,6 +23,9 @@ log_success() { echo -e "${GREEN}[OK]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
 
+# The repository root is the directory containing this script
+REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+
 # Default Options
 RUN_ONLY=false
 
@@ -33,26 +36,38 @@ while [[ $# -gt 0 ]]; do
             RUN_TASK="$2"; shift 2 ;;
         --only)
             RUN_ONLY=true; shift ;;
+        --help|-h)
+            echo "Usage: $0 [--runTask TASK] [--only]"
+            echo ""
+            echo "  --runTask TASK  Run up to and including TASK (default: plot)"
+            echo "                  Available tasks: setup, simulation, validation, plot, web"
+            echo "  --only          Run only the specified task, not the full chain up to it"
+            echo ""
+            echo "Environment variable overrides:"
+            echo "  WORKAREA                  Workspace directory (default: ~/local-k4-validation)"
+            echo "  VERSIONS                  Comma-separated variant filter (default: all)"
+            echo "  MAKE_REFERENCE_SAMPLE     Set to 'yes' to save histograms as references"
+            echo "  STEERING_FILE_REPO        FCC-config repository URL"
+            echo "  STEERING_FILE_BRANCH      FCC-config branch (default: main)"
+            echo "  TAG                       Key4hep nightly tag (default: latest)"
+            exit 0 ;;
         *)
             log_warn "Unknown option: $1"; shift ;;
     esac
 done
 
 # Default Values & Configuration Hierarchy
-DEFAULT_ORDER="setup,simulation,validation,plot"
+DEFAULT_ORDER="setup,simulation,validation,plot,web"
 TASK_ORDER="${TASK_ORDER:-$DEFAULT_ORDER}"
-RUN_TASK="${RUN_TASK:-setup}"
+RUN_TASK="${RUN_TASK:-plot}"
 
 # Pipeline Variables (Uses env/command-line value if provided, otherwise defaults)
-export K4_VALIDATION_REPO="${K4_VALIDATION_REPO:-https://gitlab.cern.ch/tleidel/k4-validation.git}"
-export K4_VALIDATION_BRANCH="${K4_VALIDATION_BRANCH:-refactor-and-workflow-change}"
-export KEY4HEP_RECO_VALIDATION_REPO="${KEY4HEP_RECO_VALIDATION_REPO:-https://github.com/TimLdl/key4hep-reco-validation.git}"
-export KEY4HEP_RECO_VALIDATION_BRANCH="${KEY4HEP_RECO_VALIDATION_BRANCH:-preparation-for-pipeline}"
 export STEERING_FILE_REPO="${STEERING_FILE_REPO:-https://github.com/HEP-FCC/FCC-config.git}"
 export STEERING_FILE_BRANCH="${STEERING_FILE_BRANCH:-main}"
 export WORKAREA="${WORKAREA:-$HOME/local-k4-validation}"
+export PLOTAREA="${PLOTAREA:-plots}"
 export REFERENCE_SAMPLE="${REFERENCE_SAMPLE:-references}"
-export VERSIONS="${VERSIONS:-IDEA_o1_v03,ALLEGRO_o1_v03}"
+export VERSIONS="${VERSIONS:-}"
 export MAKE_REFERENCE_SAMPLE="${MAKE_REFERENCE_SAMPLE:-yes}"
 export TAG="${TAG:-}"
 
@@ -90,9 +105,9 @@ log_info "=================================================="
 log_info "Execution Chain: $(echo "${TASKS_TO_RUN[@]}" | sed 's/ / -> /g')"
 log_info "--------------------------------------------------"
 echo "  - WORKAREA:               $WORKAREA"
-echo "  - VERSIONS:               $VERSIONS"
+echo "  - VERSIONS FILTER:        ${VERSIONS:-[Auto-discover all]}"
 echo "  - MAKE_REFERENCE_SAMPLE:  $MAKE_REFERENCE_SAMPLE"
-echo "  - RECO_VALIDATION REPO:   $KEY4HEP_RECO_VALIDATION_REPO ($KEY4HEP_RECO_VALIDATION_BRANCH)"
+echo "  - REPO ROOT:              $REPO_ROOT"
 echo "  - TAG:                    ${TAG:-[Default/Latest]}"
 echo "  - RUN ONLY SINGLE TASK:   $RUN_ONLY"
 log_info "=================================================="
@@ -122,16 +137,7 @@ else
     log_info "Using existing workspace directory (skipped cleanup to preserve task data)."
 fi
 
-cd "$WORKAREA"
-
-# Clone the deployment configuration repository safely if it doesn't already exist
-if [ -d "$WORKAREA/k4-validation" ]; then
-    log_info "k4-validation framework already exists. Skipping clone."
-else
-    log_info "Cloning k4-validation framework..."
-    git clone "$K4_VALIDATION_REPO" -b "$K4_VALIDATION_BRANCH" k4-validation
-fi
-cd "$WORKAREA/k4-validation"
+cd "$REPO_ROOT"
 
 # --- Centralized Job Runner Function ---
 run_gitlab_job() {
@@ -144,12 +150,12 @@ run_gitlab_job() {
 
     gitlab-ci-local --force-shell-executor \
         --variable WORKAREA="$WORKAREA" \
+        --variable PLOTAREA="$PLOTAREA" \
         --variable REFERENCE_SAMPLE="$REFERENCE_SAMPLE" \
         --variable VERSIONS="$VERSIONS" \
         --variable MAKE_REFERENCE_SAMPLE="$MAKE_REFERENCE_SAMPLE" \
-        --variable VALIDATION_JOB_TYPE="$VALIDATION_JOB_TYPE" \
-        --variable KEY4HEP_RECO_VALIDATION_REPO="$KEY4HEP_RECO_VALIDATION_REPO" \
-        --variable KEY4HEP_RECO_VALIDATION_BRANCH="$KEY4HEP_RECO_VALIDATION_BRANCH" \
+        --variable STEERING_FILE_REPO="$STEERING_FILE_REPO" \
+        --variable STEERING_FILE_BRANCH="$STEERING_FILE_BRANCH" \
         --variable TAG="$TAG" \
         "$job_name"
 

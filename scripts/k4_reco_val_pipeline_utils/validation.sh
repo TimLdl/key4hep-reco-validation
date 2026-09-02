@@ -1,71 +1,59 @@
 #!/bin/bash
 source "$(dirname "$0")/utils.sh"
-source "$WORKAREA/version_array.txt"
+REPO_ROOT="$(cat "$WORKAREA/repo_root.txt")"
+FLOW_MANIFEST="$WORKAREA/validation_flows.tsv"
+UPDATED_FLOW_MANIFEST="$WORKAREA/validation_flows.next.tsv"
 
-cd "$WORKAREA" || exit 1
+if [[ ! -f "$FLOW_MANIFEST" ]]; then
+    log_error "Validation flow manifest not found: $FLOW_MANIFEST"
+    exit 1
+fi
 
-for VERSION in "${VERSION_ARRAY[@]}"; do
-    [[ -z "$VERSION" ]] && continue
-    GEOMETRY="${VERSION%%_*}"
+: > "$UPDATED_FLOW_MANIFEST"
 
-    REF_DIR="$WORKAREA/$REFERENCE_SAMPLE/$GEOMETRY/$VERSION"
+while IFS=$'\t' read -r detector version slug validation config_path config_dir config_rel_dir particle output_tag energy seed sim_script hist_script; do
+    [[ -z "$detector" ]] && continue
 
-    if ! pushd "$WORKAREA/$GEOMETRY/$VERSION" > /dev/null; then
-        log_error "Could not enter directory: $WORKAREA/$GEOMETRY/$VERSION"
+    ref_dir="$WORKAREA/$REFERENCE_SAMPLE/$detector/$version"
+    input_file="${detector}_${output_tag}_particleGun_digi.root"
+    output_file="${detector}_${validation}_particleGun_hist.root"
+
+    if ! pushd "$WORKAREA/$detector/$version" > /dev/null; then
+        log_error "Could not enter directory: $WORKAREA/$detector/$version"
         continue
     fi
 
-    IFS=',' read -r -a raw_particles <<< "${PARTICLES:-e-,mu-}"
-    particles=()
-    for p in "${raw_particles[@]}"; do
-        p_clean="${p//[[:space:]-+]/}"
-        [[ -n "$p_clean" ]] && particles+=("$p_clean")
-    done
+    log_info "Generating histograms for validation flow '${validation}' (${detector} ${version})..."
+    python3 "$hist_script" \
+        --input "$input_file" \
+        --output "$output_file" \
+        --config-source "$config_path"
 
-    hist_exit_code=0
-
-    for particle in "${particles[@]}"; do
-        python "${WORKAREA}/key4hep-reco-validation/scripts/detectors/${GEOMETRY}/${VERSION}/hist.py" \
-            --input "${GEOMETRY}_${particle}_particleGun_digi.root" \
-            --output "${GEOMETRY}_${particle}_particleGun_hist.root" \
-            --particle-prefix "${particle}" \
-            --config "${WORKAREA}/key4hep-reco-validation/config/${GEOMETRY}/${VERSION}/config.yaml"
-
-        cmd_status=$?
-        if [ $cmd_status -ne 0 ]; then
-            hist_exit_code=1
-            log_error "Histogram generation failed for ${particle} particle gun!"
-        fi
-    done
-
-    log_info "Histogram generation completed with exit code: ${hist_exit_code}"
-
-    if [[ $hist_exit_code -ne 0 ]]; then
-        log_error "Histogram step failed. Skipping comparison email alert logic."
-        python "scripts/send_mail.py" \
+    cmd_status=$?
+    if [[ $cmd_status -ne 0 ]]; then
+        log_error "Histogram generation failed for validation flow '${validation}'!"
+        python3 "${REPO_ROOT}/scripts/k4_reco_val_pipeline_utils/send_mail.py" \
             --to "$EMAIL_ADDRESSES" \
-            --subject "WARNING for ${VERSION}: Histogram Generation Failure" \
-            --body "An error occurred making histograms for $VERSION. Check pipeline logs."
+            --subject "WARNING for ${detector} ${version} (${validation}): histogram generation failed" \
+            --body "An error occurred when generating histograms for validation flow '${validation}' in ${detector} ${version}. Check pipeline logs."
     else
-        log_success "Perfect simulation match verified for target configuration: ${VERSION}"
-
         if [[ "$MAKE_REFERENCE_SAMPLE" == "yes" ]]; then
-            for particle in "${particles[@]}"; do
-                NEW_SIM_FILE="${GEOMETRY}_${particle}_particleGun_sim.root"
-                TARGET_REF_PATH="${REF_DIR}/ref_${VERSION}_${particle}_particleGun_sim.root"
-
-                if [[ -f "${NEW_SIM_FILE}" ]]; then
-                    mkdir -p "$REF_DIR"
-                    mv "${NEW_SIM_FILE}" "$TARGET_REF_PATH"
-                    log_success "Reference file updated successfully for ${particle} ($VERSION)"
-                else
-                    log_error "Expected simulation file ${NEW_SIM_FILE} was not found for reference updating!"
-                fi
-            done
+            mkdir -p "$ref_dir"
+            cp "$output_file" "$ref_dir/$output_file"
+            log_success "Reference histogram saved for validation flow '${validation}' (${detector} ${version})"
         fi
+
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$detector" "$version" "$slug" "$validation" "$config_path" "$config_dir" "$config_rel_dir" "$particle" "$output_tag" "$energy" "$seed" "$sim_script" "$hist_script" \
+            >> "$UPDATED_FLOW_MANIFEST"
     fi
 
     popd > /dev/null || exit
-done
+done < "$FLOW_MANIFEST"
 
-declare -p VERSION_ARRAY > "$WORKAREA/version_array.txt"
+mv "$UPDATED_FLOW_MANIFEST" "$FLOW_MANIFEST"
+
+if [[ ! -s "$FLOW_MANIFEST" ]]; then
+    log_error "No validation flows succeeded in histogram generation."
+    exit 1
+fi

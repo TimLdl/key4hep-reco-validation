@@ -1,6 +1,11 @@
 detector: "ALLEGRO"
 version: "ALLEGRO_o1_v03"
 validation: "muon"
+simulation:
+  particle: "mu-"
+  output_tag: "mu"
+  energy: "10*GeV"
+
 
 detector_parameters:
   magnetic_field_tesla: 2.0
