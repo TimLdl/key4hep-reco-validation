@@ -189,7 +189,13 @@ Relevant CI variables:
 - `MAX_DYNAMIC_SHARDS`: optional cap on discovered workflow chains
 - `CI_OUTPUT_DIR`: website output directory (defaults to `$WORKAREA/web`)
 - `MAKE_REFERENCE_SAMPLE`: `yes` to save references instead of comparison mode
+  (saves the sim, digi and histogram ROOT files; existing references are only
+  overwritten when this is set). Defaults to `no` in the GitLab pipeline and to
+  `yes` in `local-run-script.sh`
 - `WORKAREA`, `PLOTAREA`, `REFERENCE_SAMPLE`: output locations
+
+The Kolmogorov-Smirnov confidence level is configured in `config/plotting.yaml`
+(`ks_test.confidence_level`, default `0.95`), not via CI variables.
 
 Notification policy:
 

@@ -46,7 +46,7 @@ while [[ $# -gt 0 ]]; do
             echo "Environment variable overrides:"
             echo "  WORKAREA                  Workspace directory (default: ~/local-k4-validation)"
             echo "  VERSIONS                  Comma-separated variant filter (default: all)"
-            echo "  MAKE_REFERENCE_SAMPLE     Set to 'yes' to save histograms as references"
+            echo "  MAKE_REFERENCE_SAMPLE     Save sim/digi/hist files as references (default: yes)"
             echo "  STEERING_FILE_REPO        FCC-config repository URL"
             echo "  STEERING_FILE_BRANCH      FCC-config branch (default: main)"
             echo "  TAG                       Key4hep nightly tag (default: latest)"

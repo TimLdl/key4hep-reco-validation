@@ -100,6 +100,8 @@ def optimize_axis_ticks(hist):
     y_axis = hist.GetYaxis()
     x_axis.SetNdivisions(510, ROOT.kTRUE)
     y_axis.SetNdivisions(510, ROOT.kTRUE)
+    if hist.GetDimension() > 2:
+        hist.GetZaxis().SetNdivisions(510, ROOT.kTRUE)
 
     if hist.InheritsFrom("TH1I") or isinstance(hist, ROOT.TH1I):
         x_axis.SetDecimals(ROOT.kFALSE)
@@ -127,65 +129,66 @@ def draw_title_latex(title_text, canvas):
     return latex
 
 
-def compute_ks_test(data_hist, ref_hist, confidence_level=0.05, option=""):
+def compute_ks_test(data_hist, ref_hist, confidence_level, option=""):
     """
     Calculates two-sample Kolmogorov-Smirnov test p-value and pass/fail status.
-    For 2D histograms, performs the KS test on 1D X and Y projections.
+    Histograms with more than one dimension are tested on their 1D projections.
 
     Args:
-        data_hist: ROOT TH1 or TH2 instance for target data.
-        ref_hist: ROOT TH1 or TH2 instance for reference data.
-        confidence_level: Significance threshold (alpha) for hypothesis testing.
+        data_hist: ROOT TH1, TH2 or TH3 instance for target data.
+        ref_hist: ROOT TH1, TH2 or TH3 instance for reference data.
+        confidence_level: Confidence level (e.g. 0.95); the test fails when
+            the p-value drops below 1 - confidence_level.
         option: ROOT KolmogorovTest string option (e.g., 'M', 'D').
 
     Returns:
-        dict: Test metrics containing p-value(s), pass/fail boolean, and confidence level.
-        None: Returned if histograms are missing or type mismatch occurs.
+        dict: Test metrics containing p-value(s), pass/fail boolean, confidence
+        level and dimension. Multi-dimensional histograms map each axis name
+        ('x', 'y', 'z') to its p-value.
+        None: Returned if histograms are missing or dimensions differ.
     """
     if not data_hist or not ref_hist:
         return None
 
+    alpha = 1.0 - confidence_level
+
     try:
-        is_2d_data = data_hist.InheritsFrom("TH2") or isinstance(data_hist, ROOT.TH2)
-        is_2d_ref = ref_hist.InheritsFrom("TH2") or isinstance(ref_hist, ROOT.TH2)
+        dimension = data_hist.GetDimension()
+        if dimension != ref_hist.GetDimension():
+            logger.warning(
+                f"KS test mismatch: {dimension}D histogram compared against "
+                f"{ref_hist.GetDimension()}D reference."
+            )
+            return None
 
-        if is_2d_data or is_2d_ref:
-            if not (is_2d_data and is_2d_ref):
-                logger.warning(
-                    "KS test mismatch: one histogram is 2D and the other is 1D."
+        if dimension > 1:
+            # Project each axis; KolmogorovTest only accepts 1D histograms.
+            p_values = {}
+            for axis in "xyz"[:dimension]:
+                projection = f"Projection{axis.upper()}"
+                data_proj = getattr(data_hist, projection)(
+                    f"{data_hist.GetName()}_p{axis}_data"
                 )
-                return None
-
-            # Project 2D histogram onto X axis
-            px_data = data_hist.ProjectionX(f"{data_hist.GetName()}_px_data")
-            px_ref = ref_hist.ProjectionX(f"{ref_hist.GetName()}_px_ref")
-            px_data.SetDirectory(0)
-            px_ref.SetDirectory(0)
-            p_val_x = float(px_data.KolmogorovTest(px_ref, option))
-
-            # Project 2D histogram onto Y axis
-            py_data = data_hist.ProjectionY(f"{data_hist.GetName()}_py_data")
-            py_ref = ref_hist.ProjectionY(f"{ref_hist.GetName()}_py_ref")
-            py_data.SetDirectory(0)
-            py_ref.SetDirectory(0)
-            p_val_y = float(py_data.KolmogorovTest(py_ref, option))
-
-            passed = (p_val_x >= confidence_level) and (p_val_y >= confidence_level)
+                ref_proj = getattr(ref_hist, projection)(
+                    f"{ref_hist.GetName()}_p{axis}_ref"
+                )
+                data_proj.SetDirectory(0)
+                ref_proj.SetDirectory(0)
+                p_values[axis] = float(data_proj.KolmogorovTest(ref_proj, option))
 
             return {
-                "p_value": {"x": p_val_x, "y": p_val_y},
-                "passed": passed,
+                "p_value": p_values,
+                "passed": all(p >= alpha for p in p_values.values()),
                 "confidence_level": confidence_level,
-                "is_2d": True,
+                "dimension": dimension,
             }
         else:
             p_val = float(data_hist.KolmogorovTest(ref_hist, option))
-            passed = p_val >= confidence_level
             return {
                 "p_value": p_val,
-                "passed": passed,
+                "passed": p_val >= alpha,
                 "confidence_level": confidence_level,
-                "is_2d": False,
+                "dimension": dimension,
             }
     except Exception as e:
         logger.warning(f"Failed to calculate Kolmogorov-Smirnov test: {e}")

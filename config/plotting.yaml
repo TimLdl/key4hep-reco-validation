@@ -6,6 +6,8 @@ canvas:
     margin_left: 0.16
     margin_right: 0.06
     right_margin_2d: 0.15
+    # ROOT draw option used for 3D histograms (COLZ is 2D-only).
+    draw_opt_3d: "BOX2Z"
 
 style:
     canvas_color: 0
@@ -19,9 +21,10 @@ style:
     y_axis_scale: 1.25
 
 ks_test:
-    confidence_level: 0.05
+    # Confidence level for the KS test; the test fails when p < 1 - confidence_level.
+    confidence_level: 0.95
     failed_color: "#FF0000"
-    frame_line_width: 3
+    frame_line_width: 8
 
 legend:
     x1: 0.48
