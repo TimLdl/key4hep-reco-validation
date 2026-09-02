@@ -9,17 +9,16 @@
 # Expected call signature (from simulation.sh):
 #   source sim_digi.sh --nEvents N --particle P --energy E --outputFile TAG --seed S
 
-# --- Setup Environment ---
 if [ -z "${KEY4HEP_STACK:-}" ]; then
-    source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
+    source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh || exit 1
 fi
 
-# Enable strict error tracking for production/pipeline safety
 set -e
 
-# Locate the FCC-config ctest script for this variant.
-# VERSION is set by simulation.sh from the manifest's 'version' column.
 CTEST_SCRIPT="${WORKAREA}/FCC-config/FCCee/FullSim/ALLEGRO/${VERSION}/ctest_sim_digi_reco.sh"
 
-# --- Forward Arguments ---
+if [[ ! -f "$CTEST_SCRIPT" ]]; then
+    echo "Missing FCC-config simulation script: $CTEST_SCRIPT" >&2
+    exit 1
+fi
 source "$CTEST_SCRIPT" "$@"

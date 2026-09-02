@@ -8,15 +8,15 @@ canvas:
     right_margin_2d: 0.15
 
 style:
-    canvas_color: 0 # ROOT.kWhite
-    pad_color: 0 # ROOT.kWhite
+    canvas_color: 0
+    pad_color: 0
     opt_stat: 0
     opt_title: 0
-    font_type: 42 # Helvetica
+    font_type: 42
     label_size: 0.045
     title_size: 0.055
     line_width: 3
-    y_axis_scale: 1.25 # Overhead factor for max Y scale
+    y_axis_scale: 1.25
 
 ks_test:
     confidence_level: 0.05
@@ -35,11 +35,11 @@ legend:
 
 sample_styles:
     data:
-        color: "#0000FF" # Blue
-        style: 1 # Solid line
+        color: "#0000FF"
+        style: 1
         label: "Data"
 
     reference:
-        color: "#0F124A" # Dark navy
-        style: 2 # Dashed line
+        color: "#0F124A"
+        style: 2
         label: "Reference"

@@ -1,24 +1,23 @@
 #!/bin/bash
-source "$(dirname "$0")/utils.sh"
+source "$(dirname "$0")/utils.sh" || exit 1
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="$(pipeline_repo_root)"
 PLOT_ROOT="$WORKAREA/$PLOTAREA"
 FLOW_MANIFEST="$WORKAREA/validation_flows.tsv"
 
 if [[ ! -d "$PLOT_ROOT" ]]; then
-    msg="Plot directory not found: $PLOT_ROOT"
-    log_error "$msg"
-    mark_pipeline_error "$msg"
-    send_stage_mail "$REPO_ROOT" "$EMAIL_ADDRESSES" "Key4hep validation workflow gate ERROR: no plots directory" "$msg"
+    message="Plot directory not found: $PLOT_ROOT"
+    log_error "$message"
+    mark_pipeline_error "$message"
+    send_stage_mail "$REPO_ROOT" "$EMAIL_ADDRESSES" "Key4hep validation workflow gate ERROR: no plots directory" "$message"
     exit 1
 fi
 
 if [[ ! -f "$FLOW_MANIFEST" ]]; then
-    msg="Flow manifest not found: $FLOW_MANIFEST"
-    log_error "$msg"
-    mark_pipeline_error "$msg"
-    send_stage_mail "$REPO_ROOT" "$EMAIL_ADDRESSES" "Key4hep validation workflow gate ERROR: missing manifest" "$msg"
+    message="Flow manifest not found: $FLOW_MANIFEST"
+    log_error "$message"
+    mark_pipeline_error "$message"
+    send_stage_mail "$REPO_ROOT" "$EMAIL_ADDRESSES" "Key4hep validation workflow gate ERROR: missing manifest" "$message"
     exit 1
 fi
 
@@ -30,7 +29,7 @@ flows_with_hist=0
 flows_with_plots=0
 declare -a detail_lines=()
 
-while IFS=$'\t' read -r detector version slug validation config_path config_dir config_rel_dir particle output_tag energy seed sim_script hist_script; do
+while IFS=$'\t' read -r detector version _slug validation _config_path _config_dir _config_rel_dir _particle output_tag _energy _seed _sim_script _hist_script; do
     [[ -z "$detector" ]] && continue
     ((total_flows += 1))
 
@@ -97,10 +96,10 @@ while IFS=$'\t' read -r detector version slug validation config_path config_dir 
 done < "$FLOW_MANIFEST"
 
 if [[ "$total_flows" -eq 0 ]]; then
-    msg="Workflow manifest is empty: $FLOW_MANIFEST"
-    log_error "$msg"
-    mark_pipeline_error "$msg"
-    send_stage_mail "$REPO_ROOT" "$EMAIL_ADDRESSES" "Key4hep validation workflow gate ERROR: empty manifest" "$msg"
+    message="Workflow manifest is empty: $FLOW_MANIFEST"
+    log_error "$message"
+    mark_pipeline_error "$message"
+    send_stage_mail "$REPO_ROOT" "$EMAIL_ADDRESSES" "Key4hep validation workflow gate ERROR: empty manifest" "$message"
     exit 1
 fi
 

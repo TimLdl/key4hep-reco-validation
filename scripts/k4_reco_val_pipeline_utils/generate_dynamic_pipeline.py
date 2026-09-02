@@ -10,9 +10,9 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 
-# GitLab CI rule `if` expressions must be single-quoted in YAML so that the
-# dollar sign and embedded double-quotes are preserved literally.
 class _SingleQuoted(str):
+    """Mark GitLab expressions that must remain single-quoted in YAML."""
+
     pass
 
 
@@ -62,14 +62,6 @@ def stage_job_template() -> dict:
     }
 
 
-def stage_job_base() -> dict:
-    """Common fields inlined into every concrete job for reliable runner matching."""
-    return {
-        "image": "gitlab-registry.cern.ch/key4hep/k4-deploy/alma9-build",
-        "tags": ["validation"],
-    }
-
-
 def stage_job_script(script_name: str) -> list[str]:
     return [f"bash scripts/k4_reco_val_pipeline_utils/{script_name}"]
 
@@ -80,10 +72,9 @@ def artifact_def() -> dict:
 
 def build_child_pipeline(chain_count: int) -> dict:
     pipeline = {
-        "stages": ["setup", "simulation", "validation", "plot", "gate", "web", "cleanup"],
+        "stages": ["setup", "simulation", "validation", "plot", "gate", "web", "deploy", "cleanup"],
         ".template-job": stage_job_template(),
         "setup": {
-            **stage_job_base(),
             "extends": ".template-job",
             "stage": "setup",
             "when": "always",
@@ -109,7 +100,6 @@ def build_child_pipeline(chain_count: int) -> dict:
         }
 
         pipeline[sim_job] = {
-            **stage_job_base(),
             "extends": ".template-job",
             "stage": "simulation",
             "rules": [{"when": "on_success"}],
@@ -119,7 +109,6 @@ def build_child_pipeline(chain_count: int) -> dict:
             "artifacts": artifact_def(),
         }
         pipeline[val_job] = {
-            **stage_job_base(),
             "extends": ".template-job",
             "stage": "validation",
             "rules": [{"when": "on_success"}],
@@ -129,7 +118,6 @@ def build_child_pipeline(chain_count: int) -> dict:
             "artifacts": artifact_def(),
         }
         pipeline[plot_job] = {
-            **stage_job_base(),
             "extends": ".template-job",
             "stage": "plot",
             "needs": [{"job": val_job, "artifacts": True}],
@@ -144,7 +132,6 @@ def build_child_pipeline(chain_count: int) -> dict:
 
     web_needs = [{"job": job_name, "artifacts": True} for job_name in plot_jobs]
     pipeline["workflow-gate"] = {
-        **stage_job_base(),
         "extends": ".template-job",
         "stage": "gate",
         "rules": [
@@ -156,7 +143,6 @@ def build_child_pipeline(chain_count: int) -> dict:
         "artifacts": artifact_def(),
     }
     pipeline["web"] = {
-        **stage_job_base(),
         "extends": ".template-job",
         "stage": "web",
         "when": "on_success",
@@ -168,8 +154,20 @@ def build_child_pipeline(chain_count: int) -> dict:
         "script": stage_job_script("web.sh"),
         "artifacts": artifact_def(),
     }
+    pipeline["deployment"] = {
+        "image": "gitlab-registry.cern.ch/ci-tools/ci-web-deployer",
+        "stage": "deploy",
+        "rules": [
+            {"if": _SingleQuoted('$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'), "when": "never"},
+            {"if": _SingleQuoted('$MAKE_REFERENCE_SAMPLE == "yes"'), "when": "never"},
+            {"when": "on_success"},
+        ],
+        "needs": [{"job": "web", "artifacts": True}],
+        "script": ["deploy-eos"],
+        "before_script": [],
+        "after_script": [],
+    }
     pipeline["cleanup"] = {
-        **stage_job_base(),
         "extends": ".template-job",
         "stage": "cleanup",
         "when": "always",
