@@ -1,5 +1,5 @@
 #!/bin/bash
-source "$(dirname "$0")/utils.sh" || exit 1
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/utils.sh" || exit 1
 
 REPO_ROOT="$(pipeline_repo_root)"
 

@@ -15,7 +15,13 @@ log_warn()    { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
 
 pipeline_repo_root() {
-    cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd
+    local default_root
+    default_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+    if [[ -n "${CI_PROJECT_DIR}" && -f "${CI_PROJECT_DIR}/scripts/k4_reco_val_pipeline_utils/utils.sh" ]]; then
+        printf '%s\n' "$CI_PROJECT_DIR"
+    else
+        printf '%s\n' "$default_root"
+    fi
 }
 
 normalize_slug() {

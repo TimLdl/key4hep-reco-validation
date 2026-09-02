@@ -54,10 +54,10 @@ Warning/error markers are written per job under `$WORKAREA/.pipeline-state/` and
 
 ## Manifest Format (`validation_flows.tsv`)
 
-The TSV manifest has 13 columns (no header):
+The TSV manifest has 15 columns (no header):
 
 ```
-detector  version  slug  validation  config_path  config_dir  config_rel_dir  particle  output_tag  energy  seed  sim_script  hist_script
+detector  version  slug  validation  config_path  config_dir  config_rel_dir  particle  output_tag  energy  seed  n_events  run_track_validation  sim_script  hist_script
 ```
 
 | Column | Example | Description |
@@ -72,7 +72,9 @@ detector  version  slug  validation  config_path  config_dir  config_rel_dir  pa
 | `particle` | `e-` | Particle gun species (passed to `sim_digi.sh`) |
 | `output_tag` | `e` | Short tag for digi filename: `<DET>_<output_tag>_particleGun_digi.root` |
 | `energy` | `10*GeV` | Beam energy (passed to `sim_digi.sh`) |
-| `seed` | `42` | Random seed for reproducibility |
+| `seed` | `42` | Random seed for reproducibility (config `simulation.seed`, default `42`) |
+| `n_events` | `100` | Number of events to simulate (config `simulation.n_events`, default `10` when omitted) |
+| `run_track_validation` | `false` | Whether to pass `--runTrackValidation` to the digi/reco step (config `simulation.run_track_validation`, default `false`) |
 | `sim_script` | `/repo/scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/sim_digi.sh` | Absolute path to simulation script |
 | `hist_script` | `/repo/scripts/detectors/ALLEGRO/ALLEGRO_o1_v03/hist.py` | Absolute path to histogram extraction script |
 

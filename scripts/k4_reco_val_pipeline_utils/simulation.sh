@@ -1,5 +1,5 @@
 #!/bin/bash
-source "$(dirname "$0")/utils.sh" || exit 1
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/utils.sh" || exit 1
 FLOW_MANIFEST="$WORKAREA/validation_flows.tsv"
 
 if [[ ! -f "$FLOW_MANIFEST" ]]; then
@@ -13,7 +13,7 @@ warning_count=0
 declare -a warning_messages=()
 declare -a failure_messages=()
 
-while IFS=$'\t' read -r detector version _slug validation _config_path _config_dir _config_rel_dir particle output_tag energy seed sim_script _hist_script; do
+while IFS=$'\t' read -r detector version _slug validation _config_path _config_dir _config_rel_dir particle output_tag energy seed n_events run_track_validation sim_script _hist_script; do
     [[ -z "$detector" ]] && continue
     ((selected_count += 1))
 
@@ -36,12 +36,17 @@ while IFS=$'\t' read -r detector version _slug validation _config_path _config_d
 
     (
         export VERSION="$version"
-        source "$sim_script" \
-            --nEvents "${NUMBER_OF_EVENTS}" \
-            --particle "$particle" \
-            --energy "$energy" \
-            --outputFile "${output_tag}_particleGun" \
+        sim_args=(
+            --nEvents "${n_events}"
+            --particle "$particle"
+            --energy "$energy"
+            --outputFile "${output_tag}_particleGun"
             --seed "$seed"
+        )
+        if [[ "${run_track_validation}" == "true" ]]; then
+            sim_args+=(--runTrackValidation)
+        fi
+        source "$sim_script" "${sim_args[@]}"
     )
     command_status=$?
 
