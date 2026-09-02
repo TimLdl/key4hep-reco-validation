@@ -7,7 +7,7 @@ This repository runs detector validation workflows end-to-end:
 3. plot rendering,
 4. static website build.
 
-The most important concept is: **the pipeline is config-driven**.
+The most important concept is: **the pipeline is config-driven**.  
 What runs is discovered from [`config/`](config), not hardcoded in CI jobs.
 
 ---
