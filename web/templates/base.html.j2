@@ -37,9 +37,9 @@
       </li>
       {% for det in detectors %}
       <li>
-        <a href="{{ root_rel }}detectors/{{ det.id }}/index.html"
-           class="{% if (detector and detector.id == det.id) or active_page == det.id %}active{% endif %}">
-          {{ det.id }}
+  <a href="{{ root_rel }}detectors/{{ det.slug }}/index.html"
+     class="{% if (detector and detector.slug == det.slug) or active_page == det.slug %}active{% endif %}">
+    {{ det.version }}
         </a>
       </li>
       {% endfor %}

@@ -185,9 +185,11 @@ class WebBuilder:
         }
 
     def _collect_and_group_detector_plots(
-        self, detector_id: str, detector_version: str
+        self, detector_id: str, detector_version: str, detector_slug: str
     ) -> dict:
         detector_dir = self.plots_dir / detector_id
+        if detector_version and detector_version != "default":
+            detector_dir = detector_dir / detector_version
         grouped_particles = {}
         discovered_paths = set()
 
@@ -210,7 +212,7 @@ class WebBuilder:
                 dest_img_dir = (
                     self.output_dir
                     / "detectors"
-                    / detector_id
+                    / detector_slug
                     / p_slug
                     / "plots"
                     / s_slug
@@ -241,7 +243,7 @@ class WebBuilder:
                 grouped_particles[p_slug]["count"] += 1
 
         logger.info(
-            f"[{detector_id}] Grouped {len(discovered_paths)} plot(s) into separate particle dashboards: "
+            f"[{detector_id} {detector_version}] Grouped {len(discovered_paths)} plot(s) into separate particle dashboards: "
             f"{list(grouped_particles.keys())}"
         )
         return grouped_particles
@@ -274,7 +276,9 @@ class WebBuilder:
         for det in detectors:
             det_id = det.get("id")
             det_version = det.get("version", "default")
-            particles_data = self._collect_and_group_detector_plots(det_id, det_version)
+            detector_slug = det.get("slug") or (det_version if det_version and det_version != "default" else det_id)
+            det["slug"] = detector_slug
+            particles_data = self._collect_and_group_detector_plots(det_id, det_version, detector_slug)
 
             det["particles"] = [
                 {"name": data["name"], "slug": data["slug"], "count": data["count"]}
@@ -288,12 +292,12 @@ class WebBuilder:
                 "detector": det,
                 "detectors": detectors,
                 "particles_data": particles_data,
-                "active_page": det_id,
+                "active_page": detector_slug,
                 "root_rel": "../../",
             }
             self.render_page(
                 template_name="detector.html.j2",
-                relative_output_path=f"detectors/{det_id}/index.html",
+                relative_output_path=f"detectors/{detector_slug}/index.html",
                 context=det_context,
             )
 
@@ -307,12 +311,12 @@ class WebBuilder:
                     "current_particle": p_info,
                     "particles_list": det["particles"],
                     "tree": p_info["tree"],
-                    "active_page": det_id,
+                    "active_page": detector_slug,
                     "root_rel": "../../../",
                 }
                 self.render_page(
                     template_name="particle_dashboard.html.j2",
-                    relative_output_path=f"detectors/{det_id}/{p_slug}/index.html",
+                    relative_output_path=f"detectors/{detector_slug}/{p_slug}/index.html",
                     context=particle_context,
                 )
 
